@@ -3,7 +3,7 @@ require_once 'includes/header.php';
 require_once 'config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /rencontre_site_web/auth/connexion.php');
+    header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
     exit;
 }
 
@@ -12,7 +12,7 @@ $sortie_id  = isset($_GET['sortie']) ? (int) $_GET['sortie'] : 0;
 $other_id   = isset($_GET['user']) ? (int) $_GET['user'] : 0;
 
 if (!$sortie_id || !$other_id) {
-    header('Location: /rencontre_site_web/messages.php');
+    header('Location: /Site_rencontre/RencontreIRL/messages.php');
     exit;
 }
 
@@ -25,7 +25,7 @@ $stmt->execute([$other_id]);
 $interlocuteur = $stmt->fetch();
 
 if (!$sortie || !$interlocuteur) {
-    header('Location: /rencontre_site_web/messages.php');
+    header('Location: /Site_rencontre/RencontreIRL/messages.php');
     exit;
 }
 
@@ -42,7 +42,7 @@ $autre_est_participant = $stmt->fetch();
 $autre_est_organisateur = ($sortie['user_id'] === $other_id);
 
 if (!($est_participant || $est_organisateur) || !($autre_est_participant || $autre_est_organisateur)) {
-    header('Location: /rencontre_site_web/sorties.php');
+    header('Location: /Site_rencontre/RencontreIRL/sorties.php');
     exit;
 }
 

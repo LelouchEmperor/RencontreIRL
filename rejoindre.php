@@ -3,14 +3,14 @@ require_once 'includes/header.php';
 require_once 'config/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /rencontre_site_web/auth/connexion.php');
+    header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
     exit;
 }
 
 $sortie_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
 if (!$sortie_id) {
-    header('Location: /rencontre_site_web/sorties.php');
+    header('Location: /Site_rencontre/RencontreIRL/sorties.php');
     exit;
 }
 
@@ -19,7 +19,7 @@ $stmt->execute([$sortie_id]);
 $sortie = $stmt->fetch();
 
 if (!$sortie) {
-    header('Location: /rencontre_site_web/sorties.php');
+    header('Location: /Site_rencontre/RencontreIRL/sorties.php');
     exit;
 }
 

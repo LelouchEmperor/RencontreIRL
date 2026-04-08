@@ -4,7 +4,7 @@ require_once 'config/db.php';
 require_once 'config/geocode.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /rencontre_site_web/auth/connexion.php');
+    header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
     exit;
 }
 

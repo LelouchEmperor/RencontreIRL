@@ -1,5 +1,5 @@
 <?php
 session_start();
 session_destroy();
-header('Location: /rencontre_site_web/index.php');
+header('Location: /Site_rencontre/RencontreIRL/index.php');
 exit;   

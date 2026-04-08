@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($user && password_verify($mdp, $user['mot_de_passe'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['prenom']  = $user['prenom'];
-            header('Location: /rencontre_site_web/index.php');
+            header('Location: /Site_rencontre/RencontreIRL/index.php');
             exit;
         } else {
             $erreur = 'Email ou mot de passe incorrect.';
