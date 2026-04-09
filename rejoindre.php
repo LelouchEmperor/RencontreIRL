@@ -45,6 +45,16 @@ if ($sortie['user_id'] === $_SESSION['user_id']) {
             $stmt->execute([$sortie_id]);
 
             $pdo->commit();
+
+            $stmt = $pdo->prepare("
+                INSERT INTO notifications (user_id, type, message, lien)
+                VALUES (?, 'participation', ?, ?)
+            ");
+            $stmt->execute([
+                $sortie['user_id'],
+                $_SESSION['prenom'] . ' a rejoint ta sortie : ' . $sortie['titre'],
+                'sorties.php'
+            ]);
             $succes = true;
         } catch (Exception $e) {
             $pdo->rollBack();

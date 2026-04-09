@@ -139,16 +139,13 @@ foreach ($toutes_sorties as $sortie) {
                   <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
                   <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
                 </div>
-                <?php if (!empty($participants)): ?>
-                  <?php foreach ($participants as $part): ?>
-                    <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $part['user_id'] ?>"
-                      class="cta-btn-small">
-                      Écrire à <?= htmlspecialchars($part['prenom']) ?>
-                    </a>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <span style="font-size: 12px; color: #c4a0a8;">En attente de participants</span>
-                <?php endif; ?>
+                              <?php if (!empty($participants)): ?>
+                <a href="messages.php" class="cta-btn-small">
+                  Messages (<?= count($participants) ?>)
+                </a>
+              <?php else: ?>
+                <span style="font-size: 12px; color: #c4a0a8;">En attente de participants</span>
+              <?php endif; ?>
               </div>
 
             <?php elseif ($deja_inscrit): ?>

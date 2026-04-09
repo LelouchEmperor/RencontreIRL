@@ -39,8 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (isset($erreur_ville)) {
                 $succes = 'Compte créé ! <a href="connexion.php">Connecte-toi</a> — Note : ta ville n\'a pas été reconnue, tu pourras la corriger dans ton profil.';
+                header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
+              exit;
             } else {
-                $succes = 'Compte créé ! <a href="connexion.php">Connecte-toi</a>';
+                header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
+                exit;
             }
         }
     }
