@@ -133,6 +133,9 @@ $sorties_rejointes = $stmt->fetchAll();
                       placeholder="Parle de toi en quelques mots..."><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
           </div>
           <button type="submit" class="submit-btn">Sauvegarder</button>
+          <p class="auth-link" style="margin-top: 1rem;">
+          <a href="modifier-mdp.php">Modifier mon mot de passe</a>
+        </p>
         </form>
       </div>
 
