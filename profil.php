@@ -136,26 +136,30 @@ $sorties_rejointes = $stmt->fetchAll();
         </form>
       </div>
 
-      <?php if (!empty($mes_sorties)): ?>
-      <div class="profil-section">
-        <h3 class="profil-section-title">Mes sorties créées</h3>
-        <div class="profil-sorties">
-          <?php foreach ($mes_sorties as $sortie): ?>
-            <div class="profil-sortie-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <span class="sortie-activite"><?= htmlspecialchars($sortie['activite']) ?></span>
-                <span style="font-size: 12px; color: #4a5a4a;"><?= $sortie['nb_participants'] ?> participant(s)</span>
-              </div>
-              <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
-              <div class="sortie-meta">
-                <?= htmlspecialchars($sortie['ville']) ?> —
-                <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
-              </div>
-            </div>
-          <?php endforeach; ?>
+<?php if (!empty($mes_sorties)): ?>
+<div class="profil-section">
+  <h3 class="profil-section-title">Mes sorties créées</h3>
+  <div class="profil-sorties">
+    <?php foreach ($mes_sorties as $sortie): ?>
+      <div class="profil-sortie-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <span class="sortie-activite"><?= htmlspecialchars($sortie['activite']) ?></span>
+          <span style="font-size: 12px; color: #a07080;"><?= $sortie['nb_participants'] ?> participant(s)</span>
+        </div>
+        <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
+        <div class="sortie-meta">
+          <?= htmlspecialchars($sortie['ville']) ?> —
+          <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
+        </div>
+        <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
+          <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
+          <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
         </div>
       </div>
-      <?php endif; ?>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
 
       <?php if (!empty($sorties_rejointes)): ?>
       <div class="profil-section">

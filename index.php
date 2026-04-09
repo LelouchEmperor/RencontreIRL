@@ -1,4 +1,10 @@
-<?php require_once 'includes/header.php'; ?>
+<?php require_once 'includes/header.php';
+
+if (isset($_SESSION['user_id'])) {
+    header('Location: /Site_rencontre/RencontreIRL/sorties.php');
+    exit;
+}
+?>
 
 <section class="index-hero">
   <div class="hero-left">

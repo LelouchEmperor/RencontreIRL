@@ -119,44 +119,48 @@ foreach ($toutes_sorties as $sortie) {
             <p class="sortie-desc"><?= htmlspecialchars($sortie['description']) ?></p>
           <?php endif; ?>
 
-          <div class="sortie-footer">
-            <span class="sortie-auteur">Proposé par <?= htmlspecialchars($sortie['prenom']) ?></span>
+        <div class="sortie-footer">
+          <span class="sortie-auteur">Proposé par <?= htmlspecialchars($sortie['prenom']) ?></span>
 
-            <?php if (isset($_SESSION['user_id'])): ?>
-              <?php if ($sortie['user_id'] === $_SESSION['user_id']): ?>
-                <?php
-                $stmt_parts = $pdo->prepare("
-                    SELECT p.user_id, u.prenom 
-                    FROM participations p 
-                    JOIN users u ON p.user_id = u.id 
-                    WHERE p.sortie_id = ?
-                ");
-                $stmt_parts->execute([$sortie['id']]);
-                $participants = $stmt_parts->fetchAll();
-                ?>
+          <?php if (isset($_SESSION['user_id'])): ?>
+            <?php if ($sortie['user_id'] === $_SESSION['user_id']): ?>
+              <?php
+              $stmt_parts = $pdo->prepare("
+                  SELECT p.user_id, u.prenom 
+                  FROM participations p 
+                  JOIN users u ON p.user_id = u.id 
+                  WHERE p.sortie_id = ?
+              ");
+              $stmt_parts->execute([$sortie['id']]);
+              $participants = $stmt_parts->fetchAll();
+              ?>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                <div style="display: flex; gap: 0.5rem;">
+                  <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
+                  <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
+                </div>
                 <?php if (!empty($participants)): ?>
-                  <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
-                    <?php foreach ($participants as $part): ?>
-                      <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $part['user_id'] ?>"
-                         class="cta-btn-small">
-                        Écrire à <?= htmlspecialchars($part['prenom']) ?>
-                      </a>
-                    <?php endforeach; ?>
-                  </div>
+                  <?php foreach ($participants as $part): ?>
+                    <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $part['user_id'] ?>"
+                      class="cta-btn-small">
+                      Écrire à <?= htmlspecialchars($part['prenom']) ?>
+                    </a>
+                  <?php endforeach; ?>
                 <?php else: ?>
-                  <span style="font-size: 12px; color: #3a4a3a;">En attente de participants</span>
+                  <span style="font-size: 12px; color: #c4a0a8;">En attente de participants</span>
                 <?php endif; ?>
+              </div>
 
-              <?php elseif ($deja_inscrit): ?>
-                <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $sortie['user_id'] ?>"
-                   class="cta-btn-small">Messagerie</a>
+            <?php elseif ($deja_inscrit): ?>
+              <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $sortie['user_id'] ?>"
+                class="cta-btn-small">Messagerie</a>
 
-              <?php else: ?>
-                <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
+            <?php else: ?>
+              <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
 
-              <?php endif; ?>
             <?php endif; ?>
-          </div>
+          <?php endif; ?>
+        </div>
         </div>
 
       <?php endforeach; ?>
