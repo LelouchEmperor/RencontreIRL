@@ -20,28 +20,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prenom = trim($_POST['prenom']);
     $ville  = trim($_POST['ville']);
     $bio    = trim($_POST['bio']);
+    $photo  = $user['photo'];
 
     if (empty($prenom) || empty($ville)) {
         $erreur = 'Le prénom et la ville sont obligatoires.';
     } else {
-        $coords = geocoder_ville($ville);
-        $lat = $coords ? $coords['latitude'] : $user['latitude'];
-        $lon = $coords ? $coords['longitude'] : $user['longitude'];
+        if (!empty($_FILES['photo']['name'])) {
+            $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
 
-        if (!$coords) {
-            $erreur = 'Ville introuvable — coordonnées inchangées.';
+            if (!in_array($ext, $allowed)) {
+                $erreur = 'Format non autorisé. Utilise JPG, PNG ou WEBP.';
+            } elseif ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+                $erreur = 'La photo ne doit pas dépasser 2 Mo.';
+            } else {
+                $nom_fichier = 'user_' . $user_id . '_' . time() . '.' . $ext;
+                $chemin = $_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $nom_fichier;
+
+                if (move_uploaded_file($_FILES['photo']['tmp_name'], $chemin)) {
+                    if ($user['photo'] && file_exists($_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $user['photo'])) {
+                        unlink($_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $user['photo']);
+                    }
+                    $photo = $nom_fichier;
+                } else {
+                    $erreur = 'Erreur lors de l\'upload. Réessaie.';
+                }
+            }
         }
 
-        $stmt = $pdo->prepare("UPDATE users SET prenom = ?, ville = ?, bio = ?, latitude = ?, longitude = ? WHERE id = ?");
-        $stmt->execute([$prenom, $ville, $bio, $lat, $lon, $user_id]);
-
-        $_SESSION['prenom'] = $prenom;
-
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-        $stmt->execute([$user_id]);
-        $user = $stmt->fetch();
-
         if (!$erreur) {
+            $coords = geocoder_ville($ville);
+            $lat = $coords ? $coords['latitude'] : $user['latitude'];
+            $lon = $coords ? $coords['longitude'] : $user['longitude'];
+
+            $stmt = $pdo->prepare("UPDATE users SET prenom = ?, ville = ?, bio = ?, latitude = ?, longitude = ?, photo = ? WHERE id = ?");
+            $stmt->execute([$prenom, $ville, $bio, $lat, $lon, $photo, $user_id]);
+
+            $_SESSION['prenom'] = $prenom;
+
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $user = $stmt->fetch();
+
             $succes = 'Profil mis à jour avec succès.';
         }
     }
@@ -75,16 +95,31 @@ $sorties_rejointes = $stmt->fetchAll();
   <div class="profil-wrap">
 
     <div class="profil-sidebar">
-      <div class="profil-avatar">
-        <?= strtoupper(substr($user['prenom'], 0, 1)) ?>
+      <div onclick="document.getElementById('photo').click()" style="cursor: pointer; position: relative; display: inline-block; margin-bottom: 1rem;">
+        <?php if ($user['photo']): ?>
+          <img src="/Site_rencontre/RencontreIRL/uploads/<?= htmlspecialchars($user['photo']) ?>"
+               id="sidebarPreview"
+               style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 0.5px solid #e8c8cc;"/>
+        <?php else: ?>
+          <div class="profil-avatar" id="sidebarPreview">
+            <?= strtoupper(substr($user['prenom'], 0, 1)) ?>
+          </div>
+        <?php endif; ?>
+        <div style="position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; background: #8b1a2a; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fdf4f5;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
       </div>
+
       <h2 class="profil-nom"><?= htmlspecialchars($user['prenom']) ?></h2>
       <p class="profil-ville">
         <?= htmlspecialchars($user['ville']) ?>
         <?php if ($user['latitude']): ?>
-          <span style="color: #4a8a4a; font-size: 11px;">✓ géolocalisé</span>
+          <span style="color: #8b1a2a; font-size: 11px;">✓ géolocalisé</span>
         <?php else: ?>
-          <span style="color: #8a4a4a; font-size: 11px;">non géolocalisé</span>
+          <span style="color: #c4a0a8; font-size: 11px;">non géolocalisé</span>
         <?php endif; ?>
       </p>
       <?php if ($user['bio']): ?>
@@ -116,16 +151,16 @@ $sorties_rejointes = $stmt->fetchAll();
           <div class="alert alert-success"><?= htmlspecialchars($succes) ?></div>
         <?php endif; ?>
 
-        <form method="POST" action="">
+        <form method="POST" action="" enctype="multipart/form-data">
+          <input type="file" id="photo" name="photo" accept="image/jpeg, image/png, image/webp" style="display: none;" />
+
           <div class="form-group">
             <label for="prenom">Prénom</label>
-            <input type="text" id="prenom" name="prenom"
-                   value="<?= htmlspecialchars($user['prenom']) ?>" required />
+            <input type="text" id="prenom" name="prenom" value="<?= htmlspecialchars($user['prenom']) ?>" required />
           </div>
           <div class="form-group">
             <label for="ville">Ville</label>
-            <input type="text" id="ville" name="ville"
-                   value="<?= htmlspecialchars($user['ville']) ?>" required />
+            <input type="text" id="ville" name="ville" value="<?= htmlspecialchars($user['ville']) ?>" required />
           </div>
           <div class="form-group">
             <label for="bio">Bio</label>
@@ -134,35 +169,36 @@ $sorties_rejointes = $stmt->fetchAll();
           </div>
           <button type="submit" class="submit-btn">Sauvegarder</button>
           <p class="auth-link" style="margin-top: 1rem;">
-          <a href="modifier-mdp.php">Modifier mon mot de passe</a>
-        </p>
+            <a href="modifier-mdp.php">Modifier mon mot de passe</a>
+          </p>
         </form>
       </div>
 
-<?php if (!empty($mes_sorties)): ?>
-<div class="profil-section">
-  <h3 class="profil-section-title">Mes sorties créées</h3>
-  <div class="profil-sorties">
-    <?php foreach ($mes_sorties as $sortie): ?>
-      <div class="profil-sortie-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-          <span class="sortie-activite"><?= htmlspecialchars($sortie['activite']) ?></span>
-          <span style="font-size: 12px; color: #a07080;"><?= $sortie['nb_participants'] ?> participant(s)</span>
-        </div>
-        <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
-        <div class="sortie-meta">
-          <?= htmlspecialchars($sortie['ville']) ?> —
-          <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
-        </div>
-        <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
-          <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
-          <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
+      <?php if (!empty($mes_sorties)): ?>
+      <div class="profil-section">
+        <h3 class="profil-section-title">Mes sorties créées</h3>
+        <div class="profil-sorties">
+          <?php foreach ($mes_sorties as $sortie): ?>
+            <div class="profil-sortie-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <span class="sortie-activite"><?= htmlspecialchars($sortie['activite']) ?></span>
+                <span style="font-size: 12px; color: #a07080;"><?= $sortie['nb_participants'] ?> participant(s)</span>
+              </div>
+              <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
+              <div class="sortie-meta">
+                <?= htmlspecialchars($sortie['ville']) ?> —
+                <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
+              </div>
+              
+              <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
+                <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
+                <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
+              </div>
+            </div>
+          <?php endforeach; ?>
         </div>
       </div>
-    <?php endforeach; ?>
-  </div>
-</div>
-<?php endif; ?>
+      <?php endif; ?>
 
       <?php if (!empty($sorties_rejointes)): ?>
       <div class="profil-section">
@@ -172,13 +208,16 @@ $sorties_rejointes = $stmt->fetchAll();
             <div class="profil-sortie-card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                 <span class="sortie-activite"><?= htmlspecialchars($sortie['activite']) ?></span>
-                <span style="font-size: 12px; color: #4a5a4a;">par <?= htmlspecialchars($sortie['organisateur']) ?></span>
+                <span style="font-size: 12px; color: #a07080;">par <?= htmlspecialchars($sortie['organisateur']) ?></span>
               </div>
               <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
               <div class="sortie-meta">
                 <?= htmlspecialchars($sortie['ville']) ?> —
                 <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
               </div>
+              <div style="margin-top: 0.75rem;">
+  <a href="quitter-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Quitter la sortie</a>
+</div>
             </div>
           <?php endforeach; ?>
         </div>
@@ -188,5 +227,22 @@ $sorties_rejointes = $stmt->fetchAll();
     </div>
   </div>
 </section>
+
+<script>
+document.getElementById('photo').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const preview = document.getElementById('sidebarPreview');
+    const img = document.createElement('img');
+    img.id = 'sidebarPreview';
+    img.src = ev.target.result;
+    img.style.cssText = 'width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #8b1a2a;';
+    preview.replaceWith(img);
+  };
+  reader.readAsDataURL(file);
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

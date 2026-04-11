@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titre       = trim($_POST['titre']);
     $activite    = trim($_POST['activite']);
     $ville       = trim($_POST['ville']);
+    $adresse = trim($_POST['adresse'] ?? '');
     $description = trim($_POST['description']);
     $date_sortie = $_POST['date_sortie'];
     $places      = (int) $_POST['places'];
@@ -51,13 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("
                 UPDATE sorties 
-                SET titre = ?, activite = ?, ville = ?, description = ?, 
+                SET titre = ?, activite = ?, ville = ?,adresse = ?, description = ?, 
                     date_sortie = ?, places_total = ?, places_restantes = ?,
                     latitude = ?, longitude = ?
                 WHERE id = ? AND user_id = ?
             ");
             $stmt->execute([
-                $titre, $activite, $ville, $description,
+                $titre, $activite, $ville, $adresse, $description,
                 $date_sortie, $places, $nouvelles_restantes,
                 $lat, $lon, $sortie_id, $_SESSION['user_id']
             ]);
@@ -93,6 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="ville">Ville</label>
         <input type="text" id="ville" name="ville" value="<?= htmlspecialchars($sortie['ville']) ?>" required />
       </div>
+      <div class="form-group">
+  <label for="adresse">Adresse (optionnel)</label>
+  <input type="text" id="adresse" name="adresse"
+         value="<?= htmlspecialchars($sortie['adresse'] ?? '') ?>"
+         placeholder="12 rue de la Paix, Place du marché..." />
+</div>
       <div class="form-group">
         <label for="description">Description</label>
         <textarea id="description" name="description" rows="4"><?= htmlspecialchars($sortie['description'] ?? '') ?></textarea>

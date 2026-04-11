@@ -1,3 +1,12 @@
+/* FONTS */ 
+
+/* Sansation */
+@font-face {
+  font-family: 'Sansation';
+  src: url('../../fonts/Sansation_Regular.ttf') format('truetype');
+}
+
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,7 +14,7 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Walkway', sans-serif;
   background: #fdf4f5;
   color: #1a0810;
   min-height: 100vh;
@@ -1031,3 +1040,4 @@ body {
   0%, 100% { box-shadow: 0 0 0 0 rgba(204, 0, 0, 0.5); }
   50% { box-shadow: 0 0 0 5px rgba(204, 0, 0, 0); }
 }
+

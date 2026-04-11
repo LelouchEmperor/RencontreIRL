@@ -68,7 +68,7 @@ foreach ($toutes_sorties as $sortie) {
     <input type="text" name="ville" placeholder="Ville..." value="<?= htmlspecialchars($ville) ?>" />
     <input type="text" name="activite" placeholder="Activité..." value="<?= htmlspecialchars($activite) ?>" />
     <?php if (isset($_SESSION['user_id']) && $user_lat && $user_lon): ?>
-      <select name="rayon" style="background: #0f160f; border: 0.5px solid #2a4a2a; border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #e8ede8; outline: none;">
+      <select name="rayon">
         <option value="0" <?= $rayon === 0 ? 'selected' : '' ?>>Toute la France</option>
         <option value="10" <?= $rayon === 10 ? 'selected' : '' ?>>Dans 10 km</option>
         <option value="25" <?= $rayon === 25 ? 'selected' : '' ?>>Dans 25 km</option>
@@ -108,56 +108,61 @@ foreach ($toutes_sorties as $sortie) {
             <span class="sortie-places"><?= $sortie['places_restantes'] ?> place(s)</span>
           </div>
           <h2 class="sortie-titre"><?= htmlspecialchars($sortie['titre']) ?></h2>
-          <p class="sortie-meta">
-            <?= htmlspecialchars($sortie['ville']) ?> —
-            <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
-            <?php if ($sortie['distance'] !== null): ?>
-              — <span style="color: #4a8a4a;"><?= $sortie['distance'] ?> km</span>
-            <?php endif; ?>
-          </p>
+<p class="sortie-meta">
+  <?= htmlspecialchars($sortie['ville']) ?>
+  <?php if (!empty($sortie['adresse'])): ?>
+    — <?= htmlspecialchars($sortie['adresse']) ?>
+  <?php endif; ?>
+</p>
+<p class="sortie-meta" style="margin-top: 0.25rem;">
+  <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
+  <?php if ($sortie['distance'] !== null): ?>
+    — <span style="color: #8b1a2a;"><?= $sortie['distance'] ?> km</span>
+  <?php endif; ?>
+</p>
           <?php if ($sortie['description']): ?>
             <p class="sortie-desc"><?= htmlspecialchars($sortie['description']) ?></p>
           <?php endif; ?>
 
-        <div class="sortie-footer">
-          <span class="sortie-auteur">Proposé par <?= htmlspecialchars($sortie['prenom']) ?></span>
+          <div class="sortie-footer">
+            <span class="sortie-auteur">Proposé par <?= htmlspecialchars($sortie['prenom']) ?></span>
 
-          <?php if (isset($_SESSION['user_id'])): ?>
-            <?php if ($sortie['user_id'] === $_SESSION['user_id']): ?>
-              <?php
-              $stmt_parts = $pdo->prepare("
-                  SELECT p.user_id, u.prenom 
-                  FROM participations p 
-                  JOIN users u ON p.user_id = u.id 
-                  WHERE p.sortie_id = ?
-              ");
-              $stmt_parts->execute([$sortie['id']]);
-              $participants = $stmt_parts->fetchAll();
-              ?>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
-                <div style="display: flex; gap: 0.5rem;">
-                  <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
-                  <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
+            <?php if (isset($_SESSION['user_id'])): ?>
+              <?php if ($sortie['user_id'] === $_SESSION['user_id']): ?>
+                <?php
+                $stmt_parts = $pdo->prepare("
+                    SELECT p.user_id, u.prenom 
+                    FROM participations p 
+                    JOIN users u ON p.user_id = u.id 
+                    WHERE p.sortie_id = ?
+                ");
+                $stmt_parts->execute([$sortie['id']]);
+                $participants = $stmt_parts->fetchAll();
+                ?>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                  <div style="display: flex; gap: 0.5rem;">
+                    <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
+                    <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
+                  </div>
+                  <?php if (!empty($participants)): ?>
+                    <a href="messages.php" class="cta-btn-small">
+                      Messages (<?= count($participants) ?>)
+                    </a>
+                  <?php else: ?>
+                    <span style="font-size: 12px; color: #c4a0a8;">En attente de participants</span>
+                  <?php endif; ?>
                 </div>
-                              <?php if (!empty($participants)): ?>
-                <a href="messages.php" class="cta-btn-small">
-                  Messages (<?= count($participants) ?>)
-                </a>
+
+              <?php elseif ($deja_inscrit): ?>
+                <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $sortie['user_id'] ?>"
+                   class="cta-btn-small">Messagerie</a>
+
               <?php else: ?>
-                <span style="font-size: 12px; color: #c4a0a8;">En attente de participants</span>
+                <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
+
               <?php endif; ?>
-              </div>
-
-            <?php elseif ($deja_inscrit): ?>
-              <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $sortie['user_id'] ?>"
-                class="cta-btn-small">Messagerie</a>
-
-            <?php else: ?>
-              <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
-
             <?php endif; ?>
-          <?php endif; ?>
-        </div>
+          </div>
         </div>
 
       <?php endforeach; ?>

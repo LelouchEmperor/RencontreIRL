@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titre       = trim($_POST['titre']);
     $activite    = trim($_POST['activite']);
     $ville       = trim($_POST['ville']);
+    $adresse = trim($_POST['adresse'] ?? '');
     $description = trim($_POST['description']);
     $date_sortie = $_POST['date_sortie'];
     $places      = (int) $_POST['places'];
@@ -30,12 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $lat = $coords['latitude'];
           $lon = $coords['longitude'];
   
-          $stmt = $pdo->prepare("INSERT INTO sorties (user_id, titre, activite, ville, description, date_sortie, places_total, places_restantes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+          $stmt = $pdo->prepare("INSERT INTO sorties (user_id, titre, activite, ville, adresse, description, date_sortie, places_total, places_restantes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
           $stmt->execute([
               $_SESSION['user_id'],
               $titre,
               $activite,
               $ville,
+              $adresse,
               $description,
               $date_sortie,
               $places,
@@ -75,6 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="form-group">
         <label for="ville">Ville</label>
         <input type="text" id="ville" name="ville" placeholder="Caen" required />
+      </div>
+      <div class="form-group">
+        <label for="adresse">Adresse (optionnel)</label>
+        <input type="text" id="adresse" name="adresse" placeholder="12 rue de la Paix, Place du marché..." />
       </div>
       <div class="form-group">
         <label for="description">Description</label>

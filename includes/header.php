@@ -71,6 +71,7 @@ session_start();
         "><?= $nb_msgs ?></span>
       <?php endif; ?>
       </a>
+      <a href="/Site_rencontre/RencontreIRL/parametres.php">Paramètres</a>
       <a href="/Site_rencontre/RencontreIRL/auth/deconnexion.php">Déconnexion</a>
     <?php else: ?>
       <a href="/Site_rencontre/RencontreIRL/auth/connexion.php">Connexion</a>
