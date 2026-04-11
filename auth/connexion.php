@@ -14,15 +14,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
-
-        if ($user && password_verify($mdp, $user['mot_de_passe'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['prenom']  = $user['prenom'];
-            header('Location: /Site_rencontre/RencontreIRL/index.php');
-            exit;
-        } else {
-            $erreur = 'Email ou mot de passe incorrect.';
-        }
+if ($user && password_verify($mdp, $user['mot_de_passe'])) {
+    if (!$user['email_verifie']) {
+        $erreur = 'Ton email n\'est pas encore vérifié. Consulte ta boîte mail.';
+    } else {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['prenom']  = $user['prenom'];
+        header('Location: /Site_rencontre/RencontreIRL/sorties.php');
+        exit;
+    }
+} else {
+    $erreur = 'Email ou mot de passe incorrect.';
+}
     }
 }
 ?>

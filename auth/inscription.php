@@ -2,6 +2,7 @@
 require_once '../includes/header.php';
 require_once '../config/db.php';
 require_once '../config/geocode.php';
+require_once '../config/mailer.php';
 
 $erreur = '';
 $succes = '';
@@ -24,27 +25,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->fetch()) {
             $erreur = 'Cet email est déjà utilisé.';
         } else {
-            $hash = password_hash($mdp, PASSWORD_BCRYPT);
+            $hash  = password_hash($mdp, PASSWORD_BCRYPT);
+            $token = bin2hex(random_bytes(32));
 
             $coords = geocoder_ville($ville);
             $lat = $coords ? $coords['latitude'] : null;
             $lon = $coords ? $coords['longitude'] : null;
 
-            if (!$coords) {
-                $erreur_ville = true;
-            }
+            $stmt = $pdo->prepare("INSERT INTO users (prenom, email, email_verifie, token_verification, mot_de_passe, ville, latitude, longitude) VALUES (?, ?, 0, ?, ?, ?, ?, ?)");
+            $stmt->execute([$prenom, $email, $token, $hash, $ville, $lat, $lon]);
 
-            $stmt = $pdo->prepare("INSERT INTO users (prenom, email, mot_de_passe, ville, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$prenom, $email, $hash, $ville, $lat, $lon]);
+            $lien = "http://localhost/Site_rencontre/RencontreIRL/auth/verifier-email.php?token=" . $token;
 
-            if (isset($erreur_ville)) {
-                $succes = 'Compte créé ! <a href="connexion.php">Connecte-toi</a> — Note : ta ville n\'a pas été reconnue, tu pourras la corriger dans ton profil.';
-                header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
-              exit;
-            } else {
-                header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
-                exit;
-            }
+            $corps = "
+            <div style='font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem;'>
+                <h2 style='color: #8b1a2a;'>Bienvenue sur Rencontre IRL, {$prenom} !</h2>
+                <p style='color: #7a5060; line-height: 1.7;'>Pour activer ton compte, clique sur le bouton ci-dessous :</p>
+                <a href='{$lien}' style='display: inline-block; margin: 1.5rem 0; padding: 14px 28px; background: #8b1a2a; color: white; border-radius: 8px; text-decoration: none; font-size: 15px;'>
+                    Vérifier mon email
+                </a>
+                <p style='color: #c4a0a8; font-size: 12px;'>Si tu n'as pas créé de compte, ignore cet email.</p>
+            </div>";
+
+            envoyerEmail($email, 'Vérifie ton adresse email — Rencontre IRL', $corps);
+
+            $succes = 'Compte créé ! Vérifie ta boîte mail pour activer ton compte.';
         }
     }
 }
@@ -62,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="alert alert-success"><?= $succes ?></div>
     <?php endif; ?>
 
+    <?php if (!$succes): ?>
     <form method="POST" action="">
       <div class="form-group">
         <label for="prenom">Prénom</label>
@@ -81,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
       <button type="submit" class="submit-btn">Créer mon compte</button>
     </form>
+    <?php endif; ?>
 
     <p class="auth-link">Déjà un compte ? <a href="connexion.php">Se connecter</a></p>
   </div>
