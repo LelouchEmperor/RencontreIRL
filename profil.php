@@ -17,10 +17,11 @@ $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $prenom = trim($_POST['prenom']);
-    $ville  = trim($_POST['ville']);
-    $bio    = trim($_POST['bio']);
-    $photo  = $user['photo'];
+    $prenom         = trim($_POST['prenom']);
+    $ville          = trim($_POST['ville']);
+    $bio            = trim($_POST['bio']);
+    $date_naissance = $_POST['date_naissance'] ?? $user['date_naissance'];
+    $photo          = $user['photo'];
 
     if (empty($prenom) || empty($ville)) {
         $erreur = 'Le prénom et la ville sont obligatoires.';
@@ -53,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lat = $coords ? $coords['latitude'] : $user['latitude'];
             $lon = $coords ? $coords['longitude'] : $user['longitude'];
 
-            $stmt = $pdo->prepare("UPDATE users SET prenom = ?, ville = ?, bio = ?, latitude = ?, longitude = ?, photo = ? WHERE id = ?");
-            $stmt->execute([$prenom, $ville, $bio, $lat, $lon, $photo, $user_id]);
+            $stmt = $pdo->prepare("UPDATE users SET prenom = ?, ville = ?, bio = ?, date_naissance = ?, latitude = ?, longitude = ?, photo = ? WHERE id = ?");
+            $stmt->execute([$prenom, $ville, $bio, $date_naissance, $lat, $lon, $photo, $user_id]);
 
             $_SESSION['prenom'] = $prenom;
 
@@ -122,6 +123,11 @@ $sorties_rejointes = $stmt->fetchAll();
           <span style="color: #c4a0a8; font-size: 11px;">non géolocalisé</span>
         <?php endif; ?>
       </p>
+      <?php if ($user['date_naissance']): ?>
+        <p style="font-size: 13px; color: #a07080; margin-bottom: 0.5rem;">
+          <?= (int) date('Y') - (int) date('Y', strtotime($user['date_naissance'])) ?> ans
+        </p>
+      <?php endif; ?>
       <?php if ($user['bio']): ?>
         <p class="profil-bio"><?= nl2br(htmlspecialchars($user['bio'])) ?></p>
       <?php endif; ?>
@@ -163,6 +169,11 @@ $sorties_rejointes = $stmt->fetchAll();
             <input type="text" id="ville" name="ville" value="<?= htmlspecialchars($user['ville']) ?>" required />
           </div>
           <div class="form-group">
+            <label for="date_naissance">Date de naissance</label>
+            <input type="date" id="date_naissance" name="date_naissance"
+                   value="<?= htmlspecialchars($user['date_naissance'] ?? '') ?>" />
+          </div>
+          <div class="form-group">
             <label for="bio">Bio</label>
             <textarea id="bio" name="bio" rows="3"
                       placeholder="Parle de toi en quelques mots..."><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
@@ -189,7 +200,6 @@ $sorties_rejointes = $stmt->fetchAll();
                 <?= htmlspecialchars($sortie['ville']) ?> —
                 <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
               </div>
-              
               <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
                 <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
                 <a href="supprimer-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Supprimer</a>
@@ -216,8 +226,8 @@ $sorties_rejointes = $stmt->fetchAll();
                 <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
               </div>
               <div style="margin-top: 0.75rem;">
-  <a href="quitter-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Quitter la sortie</a>
-</div>
+                <a href="quitter-sortie.php?id=<?= $sortie['id'] ?>" style="font-size: 12px; color: #8b1a2a; border: 0.5px solid #d4909a; padding: 6px 14px; border-radius: 6px; text-decoration: none;">Quitter la sortie</a>
+              </div>
             </div>
           <?php endforeach; ?>
         </div>
@@ -245,4 +255,4 @@ document.getElementById('photo').addEventListener('change', function(e) {
 });
 </script>
 
-<?php require_once 'includes/footer.php'; ?>
+<?php require_once 'includes/footer.php'; ?> 
