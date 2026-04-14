@@ -37,9 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lat = $coords ? $coords['latitude'] : null;
                 $lon = $coords ? $coords['longitude'] : null;
 
-                $stmt = $pdo->prepare("INSERT INTO users (prenom, email, email_verifie, token_verification, mot_de_passe, ville, date_naissance, latitude, longitude) VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO users (prenom, email, email_verifie, token_verification, mot_de_passe, ville, date_naissance, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$prenom, $email, 0, $token, $hash, $ville, $date_naissance, $lat, $lon]);
-
                 $lien = "http://localhost/Site_rencontre/RencontreIRL/auth/verifier-email.php?token=" . $token;
 
                 $corps = "
