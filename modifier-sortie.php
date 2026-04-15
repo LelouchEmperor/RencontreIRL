@@ -28,6 +28,7 @@ $erreur = '';
 $succes = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      csrf_verify();
     $titre       = trim($_POST['titre']);
     $activite    = trim($_POST['activite']);
     $ville       = trim($_POST['ville']);
@@ -82,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" action="">
+        <?= csrf_field() ?>
       <div class="form-group">
         <label for="titre">Titre</label>
         <input type="text" id="titre" name="titre" value="<?= htmlspecialchars($sortie['titre']) ?>" required />

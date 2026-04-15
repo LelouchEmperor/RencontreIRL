@@ -15,3 +15,5 @@ try {
 } catch (PDOException $e) {
     die("Erreur de connexion : " . $e->getMessage());
 }
+
+require_once __DIR__ . '/csrf.php';

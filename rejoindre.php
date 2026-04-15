@@ -31,6 +31,7 @@ if ($sortie['user_id'] === $_SESSION['user_id']) {
 } elseif ($sortie['places_restantes'] <= 0) {
     $erreur = "Cette sortie est complète.";
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $stmt = $pdo->prepare("SELECT id FROM participations WHERE sortie_id = ? AND user_id = ?");
     $stmt->execute([$sortie_id, $_SESSION['user_id']]);
     if ($stmt->fetch()) {
@@ -108,8 +109,9 @@ if ($sortie['user_id'] === $_SESSION['user_id']) {
       <p style="margin-top: 1.5rem; font-size: 14px; color: #6a7a6a;">
         Tu es sur le point de rejoindre cette sortie. Confirmes-tu ta participation ?
       </p>
-      <form method="POST" action="rejoindre.php?id=<?= $sortie_id ?>" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-        <a href="sorties.php" class="cta-btn">Annuler</a>
+<form method="POST" action="rejoindre.php?id=<?= $sortie_id ?>" style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+  <?= csrf_field() ?>        
+  <a href="sorties.php" class="cta-btn">Annuler</a>
         <button type="submit" class="submit-btn">Confirmer ma participation</button>
       </form>
     <?php endif; ?>

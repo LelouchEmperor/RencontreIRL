@@ -17,7 +17,8 @@ $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $prenom         = trim($_POST['prenom']);
+    csrf_verify();
+    $prenom = trim($_POST['prenom']);
     $ville          = trim($_POST['ville']);
     $bio            = trim($_POST['bio']);
     $date_naissance = $_POST['date_naissance'] ?? $user['date_naissance'];
@@ -142,7 +143,11 @@ $sorties_rejointes = $stmt->fetchAll();
           <span class="stat-label">Sorties rejointes</span>
         </div>
       </div>
+      <a href="upload-photo.php" class="cta-btn-small" style="margin-top: 1rem;">
+        Gérer mes photos
+    </a>
     </div>
+    
 
     <div class="profil-content">
 
@@ -156,9 +161,9 @@ $sorties_rejointes = $stmt->fetchAll();
         <?php if ($succes): ?>
           <div class="alert alert-success"><?= htmlspecialchars($succes) ?></div>
         <?php endif; ?>
-
-        <form method="POST" action="" enctype="multipart/form-data">
-          <input type="file" id="photo" name="photo" accept="image/jpeg, image/png, image/webp" style="display: none;" />
+<form method="POST" action="" enctype="multipart/form-data">
+  <?= csrf_field() ?>
+  <input type="file" id="photo" name="photo" ...
 
           <div class="form-group">
             <label for="prenom">Prénom</label>

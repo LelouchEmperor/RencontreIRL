@@ -24,6 +24,7 @@ if (!$sortie) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $stmt = $pdo->prepare("DELETE FROM sorties WHERE id = ? AND user_id = ?");
     $stmt->execute([$sortie_id, $_SESSION['user_id']]);
     header('Location: /Site_rencontre/RencontreIRL/profil.php');
@@ -39,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       Cette action est irréversible — les participants seront également retirés.
     </p>
     <form method="POST" action="" style="display: flex; gap: 1rem;">
+      <?= csrf_field() ?>
       <a href="profil.php" class="cta-btn-outline" style="flex: 1; text-align: center;">Annuler</a>
       <button type="submit" style="flex: 1; padding: 13px; background: #8b1a2a; border: none; border-radius: 8px; color: #fdf4f5; font-size: 14px; cursor: pointer;">
         Supprimer

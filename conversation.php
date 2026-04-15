@@ -47,6 +47,7 @@ if (!($est_participant || $est_organisateur) || !($autre_est_participant || $aut
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(trim($_POST['contenu']))) {
+    csrf_verify();    
     $contenu = trim($_POST['contenu']);
     $stmt = $pdo->prepare("INSERT INTO messages (sortie_id, expediteur_id, destinataire_id, contenu) VALUES (?, ?, ?, ?)");
     $stmt->execute([$sortie_id, $user_id, $other_id, $contenu]);
@@ -102,8 +103,9 @@ $messages = $stmt->fetchAll();
     <?php endif; ?>
   </div>
 
-  <form method="POST" action="" class="chat-form">
-    <textarea name="contenu" placeholder="Ton message..." rows="2" required></textarea>
+<form method="POST" action="" class="chat-form">
+  <?= csrf_field() ?>
+  <textarea name="contenu" placeholder="Ton message..." rows="2" required></textarea>
     <button type="submit" class="submit-btn" style="width: auto; padding: 12px 24px;">Envoyer</button>
   </form>
 </section>

@@ -16,6 +16,7 @@ $user = $stmt->fetch();
 $erreur_suppression = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'supprimer_compte') {
+    csrf_verify();    
     $mdp = $_POST['mot_de_passe'];
 
     if (!password_verify($mdp, $user['mot_de_passe'])) {
@@ -47,9 +48,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <div>
           <div style="font-size: 14px; font-weight: 500; color: #1a0810;">Modifier mon profil</div>
           <div style="font-size: 12px; color: #a07080; margin-top: 0.2rem;">Prénom, ville, bio, photo</div>
+          
         </div>
-        <span style="color: #c4a0a8; font-size: 18px;">→</span>
+                <span style="color: #c4a0a8; font-size: 18px;">→</span>
+
+        <a href="upload-photo.php" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fdf4f5; border: 0.5px solid #e8c8cc; border-radius: 8px; text-decoration: none; transition: border-color 0.2s;">
+  <div>
+    <div style="font-size: 14px; font-weight: 500; color: #1a0810;">Mes photos</div>
+    <div style="font-size: 12px; color: #a07080; margin-top: 0.2rem;">Gérer ta galerie de photos</div>
+  </div>
+  <span style="color: #c4a0a8;font-size: 18px;">→</span>
+</a>
       </a>
+      <a href="prompts.php" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fdf4f5; border: 0.5px solid #e8c8cc; border-radius: 8px; text-decoration: none;">
+  <div>
+    <div style="font-size: 14px; font-weight: 500; color: #1a0810;">Mes questions</div>
+    <div style="font-size: 12px; color: #a07080; margin-top: 0.2rem;">Questions brise-glace sur ton profil</div>
+  </div>
+  <span style="color: #c4a0a8; font-size: 18px;">→</span>
+</a>
       <a href="modifier-mdp.php" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #fdf4f5; border: 0.5px solid #e8c8cc; border-radius: 8px; text-decoration: none; transition: border-color 0.2s;">
         <div>
           <div style="font-size: 14px; font-weight: 500; color: #1a0810;">Modifier mon mot de passe</div>
@@ -78,8 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         Supprimer mon compte définitivement
       </summary>
       <div style="margin-top: 1rem; padding: 1rem; background: #fdf4f5; border: 0.5px solid #e8c8cc; border-radius: 8px;">
-        <form method="POST" action="">
-          <input type="hidden" name="action" value="supprimer_compte" />
+<form method="POST" action="">
+  <input type="hidden" name="action" value="supprimer_compte" />
+  <?= csrf_field() ?>
           <div class="form-group">
             <label for="mot_de_passe">Confirme ton mot de passe</label>
             <input type="password" id="mot_de_passe" name="mot_de_passe" placeholder="Ton mot de passe" required />

@@ -34,6 +34,7 @@ if (!$participation) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare("DELETE FROM participations WHERE sortie_id = ? AND user_id = ?");
@@ -65,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="POST" action="" style="display: flex; gap: 1rem;">
+        <?= csrf_field() ?>
       <a href="profil.php" class="cta-btn-outline" style="flex: 1; text-align: center; padding: 13px;">Annuler</a>
       <button type="submit" style="flex: 1; padding: 13px; background: #8b1a2a; border: none; border-radius: 8px; color: #fdf4f5; font-size: 14px; cursor: pointer;">
         Quitter la sortie

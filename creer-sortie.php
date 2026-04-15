@@ -12,7 +12,8 @@ $erreur = '';
 $succes = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $titre       = trim($_POST['titre']);
+    csrf_verify();
+    $titre = trim($_POST['titre']);
     $activite    = trim($_POST['activite']);
     $ville       = trim($_POST['ville']);
     $adresse = trim($_POST['adresse'] ?? '');
@@ -65,9 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="alert alert-success"><?= $succes ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="">
-      <div class="form-group">
-        <label for="titre">Titre de la sortie</label>
+<form method="POST" action="">
+  <?= csrf_field() ?>
+  <div class="form-group">
+    <label for="titre">Titre de la sortie</label>
         <input type="text" id="titre" name="titre" placeholder="Rando au Mont Saint-Michel" required />
       </div>
       <div class="form-group">
