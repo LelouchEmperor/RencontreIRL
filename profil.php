@@ -2,6 +2,8 @@
 require_once 'includes/header.php';
 require_once 'config/db.php';
 require_once 'config/geocode.php';
+require_once 'config/upload.php';
+
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
@@ -31,22 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
             $allowed = ['jpg', 'jpeg', 'png', 'webp'];
 
-            if (!in_array($ext, $allowed)) {
-                $erreur = 'Format non autorisé. Utilise JPG, PNG ou WEBP.';
-            } elseif ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
-                $erreur = 'La photo ne doit pas dépasser 2 Mo.';
-            } else {
-                $nom_fichier = 'user_' . $user_id . '_' . time() . '.' . $ext;
-                $chemin = $_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $nom_fichier;
-
-                if (move_uploaded_file($_FILES['photo']['tmp_name'], $chemin)) {
-                    if ($user['photo'] && file_exists($_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $user['photo'])) {
-                        unlink($_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $user['photo']);
-                    }
-                    $photo = $nom_fichier;
-                } else {
-                    $erreur = 'Erreur lors de l\'upload. Réessaie.';
-                }
+          if (!empty($_FILES['photo']['name'])) {
+              $result = valider_et_upload_photo($_FILES['photo'], $user_id, $user['photo']);
+              if (!$result['ok']) {
+                  $erreur = $result['erreur'];
+              } else {
+                  $photo = $result['nom'];
+              }
+          }
             }
         }
 

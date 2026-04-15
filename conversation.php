@@ -7,9 +7,9 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$user_id    = $_SESSION['user_id'];
+$user_id = (int) $_SESSION['user_id'];
 $sortie_id  = isset($_GET['sortie']) ? (int) $_GET['sortie'] : 0;
-$other_id   = isset($_GET['user']) ? (int) $_GET['user'] : 0;
+$other_id = isset($_GET['user']) ? (int) $_GET['user'] : 0;
 
 if (!$sortie_id || !$other_id) {
     header('Location: /Site_rencontre/RencontreIRL/messages.php');
@@ -29,19 +29,20 @@ if (!$sortie || !$interlocuteur) {
     exit;
 }
 
-$stmt = $pdo->prepare("SELECT p.id FROM participations p WHERE p.sortie_id = ? AND p.user_id = ?");
-$stmt->execute([$sortie_id, $user_id]);
-$est_participant = $stmt->fetch();
+$stmt = $pdo->prepare("
+    SELECT 
+        SUM(CASE WHEN p.user_id = ? THEN 1 ELSE 0 END) as user_est_participant,
+        SUM(CASE WHEN p.user_id = ? THEN 1 ELSE 0 END) as other_est_participant
+    FROM participations p
+    WHERE p.sortie_id = ?
+");
+$stmt->execute([$user_id, $other_id, $sortie_id]);
+$acces = $stmt->fetch();
 
-$est_organisateur = ($sortie['user_id'] === $user_id);
+$user_a_acces  = $acces['user_est_participant'] > 0 || (int)$sortie['user_id'] === $user_id;
+$other_a_acces = $acces['other_est_participant'] > 0 || (int)$sortie['user_id'] === $other_id;
 
-$stmt = $pdo->prepare("SELECT p.id FROM participations p WHERE p.sortie_id = ? AND p.user_id = ?");
-$stmt->execute([$sortie_id, $other_id]);
-$autre_est_participant = $stmt->fetch();
-
-$autre_est_organisateur = ($sortie['user_id'] === $other_id);
-
-if (!($est_participant || $est_organisateur) || !($autre_est_participant || $autre_est_organisateur)) {
+if (!$user_a_acces || !$other_a_acces) {
     header('Location: /Site_rencontre/RencontreIRL/sorties.php');
     exit;
 }

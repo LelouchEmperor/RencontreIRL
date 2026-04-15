@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/header.php';
 require_once 'config/db.php';
+require_once 'config/upload.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/auth/connexion.php');
@@ -13,45 +14,13 @@ $succes  = '';
 
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM photos_profil WHERE user_id = ?");
 $stmt->execute([$user_id]);
-$nb_photos = $stmt->fetchColumn();
+$nb_photos = (int) $stmt->fetchColumn();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_FILES['photos'])) {
-        $fichiers = $_FILES['photos'];
-        $nb_nouvelles = count($fichiers['name']);
 
-        if ($nb_photos + $nb_nouvelles > 6) {
-            $erreur = 'Tu ne peux pas avoir plus de 6 photos de profil.';
-        } else {
-            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-            $uploaded = 0;
-
-            for ($i = 0; $i < $nb_nouvelles; $i++) {
-                if ($fichiers['error'][$i] !== UPLOAD_ERR_OK) continue;
-
-                $ext = strtolower(pathinfo($fichiers['name'][$i], PATHINFO_EXTENSION));
-
-                if (!in_array($ext, $allowed)) continue;
-                if ($fichiers['size'][$i] > 2 * 1024 * 1024) continue;
-
-                $nom_fichier = 'gallery_' . $user_id . '_' . time() . '_' . $i . '.' . $ext;
-                $chemin = $_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/uploads/' . $nom_fichier;
-
-                if (move_uploaded_file($fichiers['tmp_name'][$i], $chemin)) {
-                    $stmt = $pdo->prepare("INSERT INTO photos_profil (user_id, nom_fichier, ordre) VALUES (?, ?, ?)");
-                    $stmt->execute([$user_id, $nom_fichier, $nb_photos + $uploaded]);
-                    $uploaded++;
-                }
-            }
-
-            if ($uploaded > 0) {
-                $succes = $uploaded . ' photo(s) ajoutée(s) avec succès.';
-                $nb_photos += $uploaded;
-            }
-        }
-    }
-
+    // ── Suppression ──
     if (isset($_POST['supprimer_id'])) {
+        csrf_verify();
         $photo_id = (int) $_POST['supprimer_id'];
         $stmt = $pdo->prepare("SELECT nom_fichier FROM photos_profil WHERE id = ? AND user_id = ?");
         $stmt->execute([$photo_id, $user_id]);
@@ -67,7 +36,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM photos_profil WHERE user_id = ?");
             $stmt->execute([$user_id]);
-            $nb_photos = $stmt->fetchColumn();
+            $nb_photos = (int) $stmt->fetchColumn();
+        }
+
+    // ── Upload ──
+    } elseif (isset($_FILES['photos'])) {
+        csrf_verify();
+        $fichiers     = $_FILES['photos'];
+        $nb_nouvelles = count($fichiers['name']);
+
+        if ($nb_photos + $nb_nouvelles > 6) {
+            $erreur = 'Tu ne peux pas avoir plus de 6 photos de profil.';
+        } else {
+            $uploaded = 0;
+
+            for ($i = 0; $i < $nb_nouvelles; $i++) {
+                // Construire un tableau compatible avec valider_et_upload_photo()
+                $file_single = [
+                    'name'     => $fichiers['name'][$i],
+                    'type'     => $fichiers['type'][$i],
+                    'tmp_name' => $fichiers['tmp_name'][$i],
+                    'error'    => $fichiers['error'][$i],
+                    'size'     => $fichiers['size'][$i],
+                ];
+
+                $result = valider_et_upload_photo($file_single, $user_id);
+
+                if (!$result['ok']) {
+                    // On skip silencieusement les fichiers invalides
+                    // (ou tu peux accumuler les erreurs si tu préfères)
+                    continue;
+                }
+
+                $stmt = $pdo->prepare("INSERT INTO photos_profil (user_id, nom_fichier, ordre) VALUES (?, ?, ?)");
+                $stmt->execute([$user_id, $result['nom'], $nb_photos + $uploaded]);
+                $uploaded++;
+            }
+
+            if ($uploaded > 0) {
+                $succes     = $uploaded . ' photo(s) ajoutée(s) avec succès.';
+                $nb_photos += $uploaded;
+            } else {
+                $erreur = 'Aucune photo valide. Utilise JPG, PNG ou WEBP, 2 Mo max.';
+            }
         }
     }
 }
@@ -76,7 +87,6 @@ $stmt = $pdo->prepare("SELECT * FROM photos_profil WHERE user_id = ? ORDER BY or
 $stmt->execute([$user_id]);
 $photos = $stmt->fetchAll();
 ?>
-
 <section class="section" style="max-width: 760px; margin: 0 auto;">
   <div class="section-header">
     <h1 class="section-title">Mes photos</h1>
