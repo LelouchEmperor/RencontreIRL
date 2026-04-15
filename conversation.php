@@ -48,10 +48,19 @@ if (!$user_a_acces || !$other_a_acces) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(trim($_POST['contenu']))) {
-    csrf_verify();    
+    csrf_verify();
     $contenu = trim($_POST['contenu']);
     $stmt = $pdo->prepare("INSERT INTO messages (sortie_id, expediteur_id, destinataire_id, contenu) VALUES (?, ?, ?, ?)");
     $stmt->execute([$sortie_id, $user_id, $other_id, $contenu]);
+
+    // Si requête AJAX : répondre JSON, pas de redirect
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => true]);
+        exit;
+    }
+
+    // Fallback navigateur classique
     header("Location: conversation.php?sortie=$sortie_id&user=$other_id");
     exit;
 }
@@ -96,7 +105,7 @@ $messages = $stmt->fetchAll();
       <div class="chat-empty">Commence la conversation !</div>
     <?php else: ?>
       <?php foreach ($messages as $msg): ?>
-        <div class="chat-msg <?= $msg['expediteur_id'] === $user_id ? 'moi' : 'lui' ?>">
+          <div class="chat-msg <?= (int)$msg['expediteur_id'] === $user_id ? 'moi' : 'lui' ?>" data-id="<?= $msg['id'] ?>">
           <div class="chat-bubble"><?= nl2br(htmlspecialchars($msg['contenu'])) ?></div>
           <div class="chat-time"><?= date('d/m à H:i', strtotime($msg['created_at'])) ?></div>
         </div>
@@ -112,8 +121,116 @@ $messages = $stmt->fetchAll();
 </section>
 
 <script>
-  const chatBox = document.getElementById('chatBox');
-  chatBox.scrollTop = chatBox.scrollHeight;
+const chatBox    = document.getElementById('chatBox');
+const sortieId   = <?= $sortie_id ?>;
+const otherId    = <?= $other_id ?>;
+const moiId      = <?= $user_id ?>;
+
+// Scroll initial
+chatBox.scrollTop = chatBox.scrollHeight;
+
+// Récupère le dernier ID connu au chargement
+function getLastId() {
+    const msgs = chatBox.querySelectorAll('.chat-msg[data-id]');
+    if (!msgs.length) return 0;
+    return parseInt(msgs[msgs.length - 1].dataset.id) || 0;
+}
+
+function ajouterMessage(msg) {
+    // Supprimer le placeholder "Commence la conversation !" si présent
+    const empty = chatBox.querySelector('.chat-empty');
+    if (empty) empty.remove();
+
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + (msg.moi ? 'moi' : 'lui');
+    div.dataset.id = msg.id;
+    div.innerHTML = `
+        <div class="chat-bubble">${escapeHtml(msg.contenu).replace(/\n/g, '<br>')}</div>
+        <div class="chat-time">${msg.heure}</div>
+    `;
+    chatBox.appendChild(div);
+}
+
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+let isPolling = false;
+
+async function poll() {
+    if (isPolling) return;
+    isPolling = true;
+
+    try {
+        const lastId = getLastId();
+        const url = `/Site_rencontre/RencontreIRL/api/messages-poll.php?sortie=${sortieId}&user=${otherId}&last_id=${lastId}`;
+        const res  = await fetch(url, { credentials: 'same-origin' });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        if (data.error) return;
+
+        if (data.length > 0) {
+            const wasAtBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 60;
+
+            data.forEach(msg => ajouterMessage(msg));
+
+            // Auto-scroll uniquement si l'user était déjà en bas
+            if (wasAtBottom) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+    } catch (e) {
+        // Silencieux — pas de console.error en prod
+    } finally {
+        isPolling = false;
+    }
+}
+
+// Lancer le polling toutes les 3 secondes
+const pollInterval = setInterval(poll, 3000);
+
+// Envoyer un message via AJAX (plus de rechargement de page)
+const form     = document.querySelector('.chat-form');
+const textarea = form.querySelector('textarea');
+
+form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const contenu = textarea.value.trim();
+    if (!contenu) return;
+
+    const formData = new FormData(form);
+
+    try {
+        const res = await fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        // Le serveur redirige après POST — on ignore la réponse
+        // et on force un poll immédiat pour afficher le message
+        textarea.value = '';
+        textarea.style.height = 'auto';
+        await poll();
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+    } catch (e) {
+        // fallback : soumettre normalement
+        form.submit();
+    }
+});
+
+// Stop polling si l'user quitte la page
+window.addEventListener('beforeunload', () => clearInterval(pollInterval));
 </script>
 
 <?php require_once 'includes/footer.php'; ?>
