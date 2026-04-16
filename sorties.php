@@ -127,6 +127,16 @@ foreach ($toutes_sorties as $sortie) {
           // ── MAINTENANT : simple lookup tableau ──
         $deja_inscrit = isset($participations_user[$sortie['id']]);
         $participants = $participants_par_sortie[$sortie['id']] ?? [];
+        $deja_like = false;
+        $nb_likes  = 0;
+        if (isset($_SESSION['user_id'])) {
+            $stmt_like = $pdo->prepare("SELECT id FROM likes_sorties WHERE sortie_id = ? AND user_id = ?");
+            $stmt_like->execute([$sortie['id'], $_SESSION['user_id']]);
+            $deja_like = $stmt_like->fetch();
+        }
+        $stmt_nb = $pdo->prepare("SELECT COUNT(*) FROM likes_sorties WHERE sortie_id = ?");
+        $stmt_nb->execute([$sortie['id']]);
+        $nb_likes = $stmt_nb->fetchColumn();
 
         ?>
 
@@ -149,14 +159,14 @@ foreach ($toutes_sorties as $sortie) {
   <?php endif; ?>
 </p>
           <?php if ($sortie['description']): ?>
-            <p class="sortie-desc"><?= htmlspecialchars($sortie['description']) ?></p>
-          <?php endif; ?>
+  <p class="sortie-desc"><?= htmlspecialchars($sortie['description']) ?></p>
+<?php endif; ?>
 
-          <div class="sortie-footer">
-            <span class="sortie-auteur">Proposé par <?= htmlspecialchars($sortie['prenom']) ?></span>
+<div class="sortie-footer">
+  <span class="sortie-auteur">Proposé par <?= htmlspecialchars($sortie['prenom']) ?></span>
 
-            <?php if (isset($_SESSION['user_id'])): ?>
-                  <?php if ($sortie['user_id'] === $_SESSION['user_id']): ?>
+  <?php if (isset($_SESSION['user_id'])): ?>
+    <?php if ($sortie['user_id'] === $_SESSION['user_id']): ?>
       <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
         <div style="display: flex; gap: 0.5rem;">
           <a href="modifier-sortie.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Modifier</a>
@@ -176,16 +186,50 @@ foreach ($toutes_sorties as $sortie) {
          class="cta-btn-small">Messagerie</a>
 
     <?php else: ?>
-      <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
-
-    <?php endif; ?>
-            <?php endif; ?>
-          </div>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <form method="POST" action="like-sortie.php">
+            <input type="hidden" name="sortie_id" value="<?= $sortie['id'] ?>" />
+            <button onclick="toggleLike(<?= $sortie['id'] ?>, this)" 
+                    data-liked="<?= $deja_like ? '1' : '0' ?>"
+                    data-count="<?= $nb_likes ?>"
+                    style="font-size: 12px; padding: 6px 14px; border-radius: 6px; border: 0.5px solid #d4909a; background: <?= $deja_like ? '#8b1a2a' : 'transparent' ?>; color: <?= $deja_like ? '#fdf4f5' : '#8b1a2a' ?>; cursor: pointer;">
+              <?= $deja_like ? '♥ ' . $nb_likes : '♡ ' . $nb_likes ?>
+            </button>
+          </form>
+          <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
         </div>
-
-      <?php endforeach; ?>
-    </div>
+        <a href="signaler.php?id=<?= $sortie['user_id'] ?>" style="font-size: 11px; color: #c4a0a8; text-decoration: none;">Signaler</a>
+      </div>
+    <?php endif; ?>
   <?php endif; ?>
+</div>
+</div>
+
+<?php endforeach; ?>
+</div>
+<?php endif; ?>
 </section>
+
+<script>
+function toggleLike(sortieId, btn) {
+  const liked = btn.dataset.liked === '1';
+  const count = parseInt(btn.dataset.count);
+  const newLiked = !liked;
+  const newCount = newLiked ? count + 1 : count - 1;
+
+  btn.dataset.liked = newLiked ? '1' : '0';
+  btn.dataset.count = newCount;
+  btn.textContent = (newLiked ? '♥ ' : '♡ ') + newCount;
+  btn.style.background = newLiked ? '#8b1a2a' : 'transparent';
+  btn.style.color = newLiked ? '#fdf4f5' : '#8b1a2a';
+
+  fetch('/Site_rencontre/RencontreIRL/like-sortie.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'sortie_id=' + sortieId + '&ajax=1'
+  });
+}
+</script>
 
 <?php require_once 'includes/footer.php'; ?>
