@@ -185,18 +185,16 @@ foreach ($toutes_sorties as $sortie) {
       <a href="conversation.php?sortie=<?= $sortie['id'] ?>&user=<?= $sortie['user_id'] ?>"
          class="cta-btn-small">Messagerie</a>
 
-    <?php else: ?>
+        <?php else: ?>
       <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <form method="POST" action="like-sortie.php">
-            <input type="hidden" name="sortie_id" value="<?= $sortie['id'] ?>" />
-            <button onclick="toggleLike(<?= $sortie['id'] ?>, this)" 
-                    data-liked="<?= $deja_like ? '1' : '0' ?>"
-                    data-count="<?= $nb_likes ?>"
-                    style="font-size: 12px; padding: 6px 14px; border-radius: 6px; border: 0.5px solid #d4909a; background: <?= $deja_like ? '#8b1a2a' : 'transparent' ?>; color: <?= $deja_like ? '#fdf4f5' : '#8b1a2a' ?>; cursor: pointer;">
-              <?= $deja_like ? '♥ ' . $nb_likes : '♡ ' . $nb_likes ?>
-            </button>
-          </form>
+          <button type="button"
+                  onclick="toggleLike(<?= $sortie['id'] ?>, this)" 
+                  data-liked="<?= $deja_like ? '1' : '0' ?>"
+                  data-count="<?= $nb_likes ?>"
+                  style="font-size: 12px; padding: 6px 14px; border-radius: 6px; border: 0.5px solid #d4909a; background: <?= $deja_like ? '#8b1a2a' : 'transparent' ?>; color: <?= $deja_like ? '#fdf4f5' : '#8b1a2a' ?>; cursor: pointer;">
+            <?= $deja_like ? '♥ ' . $nb_likes : '♡ ' . $nb_likes ?>
+          </button>
           <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
         </div>
         <a href="signaler.php?id=<?= $sortie['user_id'] ?>" style="font-size: 11px; color: #c4a0a8; text-decoration: none;">Signaler</a>
