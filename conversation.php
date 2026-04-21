@@ -96,6 +96,12 @@ $messages = $stmt->fetchAll();
       <div>
         <div class="conv-nom"><?= htmlspecialchars($interlocuteur['prenom']) ?></div>
         <div class="conv-sortie"><?= htmlspecialchars($sortie['titre']) ?></div>
+        <div style="margin-top: 0.25rem;">
+  <a href="signaler.php?type=user&target=<?= (int)$interlocuteur['id'] ?>"
+     style="font-size: 11px; color: #c4a0a8; text-decoration: none;">
+    Signaler ce profil
+  </a>
+</div>
       </div>
     </div>
   </div>
@@ -107,6 +113,14 @@ $messages = $stmt->fetchAll();
       <?php foreach ($messages as $msg): ?>
           <div class="chat-msg <?= (int)$msg['expediteur_id'] === $user_id ? 'moi' : 'lui' ?>" data-id="<?= $msg['id'] ?>">
           <div class="chat-bubble"><?= nl2br(htmlspecialchars($msg['contenu'])) ?></div>
+          <?php if ((int)$msg['expediteur_id'] !== $user_id): ?>
+  <div style="margin-top: 4px;">
+    <a href="signaler.php?type=message&target=<?= (int)$msg['id'] ?>"
+       style="font-size: 11px; color: #c4a0a8; text-decoration: none;">
+      Signaler
+    </a>
+  </div>
+<?php endif; ?>
           <div class="chat-time"><?= date('d/m à H:i', strtotime($msg['created_at'])) ?></div>
         </div>
       <?php endforeach; ?>

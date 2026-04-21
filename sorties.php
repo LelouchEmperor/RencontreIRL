@@ -197,8 +197,10 @@ foreach ($toutes_sorties as $sortie) {
           </button>
           <a href="rejoindre.php?id=<?= $sortie['id'] ?>" class="cta-btn-small">Rejoindre</a>
         </div>
-        <a href="signaler.php?id=<?= $sortie['user_id'] ?>" style="font-size: 11px; color: #c4a0a8; text-decoration: none;">Signaler</a>
-      </div>
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end; flex-wrap:wrap;">
+          <a href="signaler.php?type=user&target=<?= (int)$sortie['user_id'] ?>" style="font-size: 11px; color: #c4a0a8; text-decoration: none;">Signaler le profil</a>
+          <a href="signaler.php?type=sortie&target=<?= (int)$sortie['id'] ?>" style="font-size: 11px; color: #c4a0a8; text-decoration: none;">Signaler la sortie</a>
+        </div>      </div>
     <?php endif; ?>
   <?php endif; ?>
 </div>

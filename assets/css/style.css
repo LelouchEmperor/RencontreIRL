@@ -13,12 +13,27 @@
   padding: 0;
 }
 
-body {
-  font-family: 'Walkway', sans-serif;
-  background: #fdf4f5;
-  color: #1a0810;
-  min-height: 100vh;
+html, body {
+  height: 100%;
+  margin: 0;
 }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main,
+.page-content,
+.section {
+  width: 100%;
+}
+
+.site-footer,
+footer {
+  margin-top: auto;
+} 
 
 /* NAV */
 .nav {
