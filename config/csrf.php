@@ -17,7 +17,7 @@ function csrf_field(): string {
     return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '" />';
 }
 
-function csrf_verify(): void {
+function csrf_verify(bool $rotate = true): void {
     $token_post    = $_POST['csrf_token'] ?? '';
     $token_session = $_SESSION['csrf_token'] ?? '';
 
@@ -26,5 +26,7 @@ function csrf_verify(): void {
         die('Action non autorisée. <a href="javascript:history.back()">Retour</a>');
     }
 
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    if ($rotate) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
 }

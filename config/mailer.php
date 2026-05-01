@@ -2,21 +2,33 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require_once $_SERVER['DOCUMENT_ROOT'] . '/Site_rencontre/RencontreIRL/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 function envoyerEmail($destinataire, $sujet, $corps) {
     $mail = new PHPMailer(true);
 
+    $host = getenv('SMTP_HOST') ?: '';
+    $username = getenv('SMTP_USERNAME') ?: '';
+    $password = getenv('SMTP_PASSWORD') ?: '';
+    $port = (int) (getenv('SMTP_PORT') ?: 587);
+    $secure = getenv('SMTP_SECURE') ?: PHPMailer::ENCRYPTION_STARTTLS;
+    $from = getenv('SMTP_FROM') ?: 'noreply@rencontreirl.fr';
+    $fromName = getenv('SMTP_FROM_NAME') ?: 'Rencontre IRL';
+
+    if ($host === '' || $username === '' || $password === '') {
+        return false;
+    }
+
     try {
         $mail->isSMTP();
-        $mail->Host       = 'sandbox.smtp.mailtrap.io';
+        $mail->Host       = $host;
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'a883fb21311d5a';
-        $mail->Password   = '3d21716d8abb4f';
-        $mail->SMTPSecure = 'tls';
-        $mail->Port       = 2525;
+        $mail->Username   = $username;
+        $mail->Password   = $password;
+        $mail->SMTPSecure = $secure;
+        $mail->Port       = $port;
 
-        $mail->setFrom('noreply@rencontreirl.fr', 'Rencontre IRL');
+        $mail->setFrom($from, $fromName);
         $mail->addAddress($destinataire);
 
         $mail->isHTML(true);

@@ -1,5 +1,7 @@
+  </main>
+
 <footer class="footer">
-  <a href="/Site_rencontre/RencontreIRL/mentions-legales.php" class="footer-text">Mentions légales</a>
+  <a href="/Site_rencontre/RencontreIRL/app/pages/mentions-legales.php" class="footer-text">Mentions légales</a>
   <span class="footer-text">Rencontre — Kindle Bloom</span>
 </footer>
 
@@ -20,3 +22,5 @@ if (!localStorage.getItem('cookies_accepted')) {
   document.getElementById('cookieBanner').style.display = 'flex';
 }
 </script>
+</body>
+</html>
