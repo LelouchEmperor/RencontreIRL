@@ -3,6 +3,8 @@ require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../services/conversation-access.php';
 require_once __DIR__ . '/../services/user-blocks.php';
+require_once __DIR__ . '/../services/security-log.php';
+require_once __DIR__ . '/../services/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
@@ -41,8 +43,54 @@ $bloque_par_moi = utilisateur_bloque_par_moi($pdo, $user_id, $other_id);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(trim($_POST['contenu']))) {
     csrf_verify();
     $contenu = trim($_POST['contenu']);
+
+    if (strlen($contenu) > 2000) {
+        http_response_code(422);
+
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'message_trop_long']);
+            exit;
+        }
+
+        die('Message trop long.');
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM messages
+        WHERE expediteur_id = ?
+        AND created_at >= (NOW() - INTERVAL 1 MINUTE)
+    ");
+    $stmt->execute([$user_id]);
+
+    if ((int) $stmt->fetchColumn() >= 12) {
+        journaliser_evenement_securite($pdo, 'message_rate_limited', $user_id, null, 'sortie=' . $sortie_id . ';destinataire=' . $other_id);
+        http_response_code(429);
+
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'trop_de_messages']);
+            exit;
+        }
+
+        die('Trop de messages envoyes en peu de temps.');
+    }
+
+    if (preg_match('/\b(crypto|bitcoin|usdt|western union|transfert|argent|urgence|whatsapp|telegram|email|gmail|invest|placement)\b/i', $contenu)) {
+        journaliser_evenement_securite($pdo, 'message_risk_keyword', $user_id, null, 'sortie=' . $sortie_id . ';destinataire=' . $other_id);
+    }
+
     $stmt = $pdo->prepare("INSERT INTO messages (sortie_id, expediteur_id, destinataire_id, contenu) VALUES (?, ?, ?, ?)");
     $stmt->execute([$sortie_id, $user_id, $other_id, $contenu]);
+
+    creer_notification(
+        $pdo,
+        $other_id,
+        'message',
+        ($_SESSION['prenom'] ?? 'Un utilisateur') . ' t a envoye un message pour "' . $sortie['titre'] . '".',
+        'app/pages/conversation.php?sortie=' . (int) $sortie_id . '&user=' . (int) $user_id
+    );
 
     // Si requête AJAX : répondre JSON, pas de redirect
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
@@ -105,6 +153,10 @@ $messages = $stmt->fetchAll();
     </div>
   </div>
 
+  <div class="safety-inline-banner">
+    Securite : garde les premiers echanges ici. Refuse les demandes d'argent, crypto, liens suspects ou pression pour passer trop vite ailleurs.
+  </div>
+
   <div class="chat-box" id="chatBox">
     <?php if (empty($messages)): ?>
       <div class="chat-empty">Commence la conversation !</div>
@@ -131,6 +183,7 @@ $messages = $stmt->fetchAll();
   <textarea name="contenu" placeholder="Ton message..." rows="2" maxlength="2000" required></textarea>
     <button type="submit" class="submit-btn" style="width: auto; padding: 12px 24px;">Envoyer</button>
   </form>
+  <p class="chat-error" id="chatError" style="display:none;"></p>
 </section>
 
 <script>
@@ -212,6 +265,7 @@ const pollInterval = setInterval(poll, 3000);
 // Envoyer un message via AJAX (plus de rechargement de page)
 const form     = document.querySelector('.chat-form');
 const textarea = form.querySelector('textarea');
+const chatError = document.getElementById('chatError');
 
 textarea.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -226,6 +280,9 @@ form.addEventListener('submit', async function(e) {
     const contenu = textarea.value.trim();
     if (!contenu) return;
 
+    chatError.style.display = 'none';
+    chatError.textContent = '';
+
     const formData = new FormData(form);
 
     try {
@@ -235,9 +292,16 @@ form.addEventListener('submit', async function(e) {
             credentials: 'same-origin',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
+        const data = await res.json();
 
-        // Le serveur redirige après POST — on ignore la réponse
-        // et on force un poll immédiat pour afficher le message
+        if (!res.ok || !data.ok) {
+            chatError.textContent = data.error === 'trop_de_messages'
+                ? 'Tu envoies trop de messages trop vite. Attends un instant.'
+                : 'Ton message ne peut pas etre envoye pour le moment.';
+            chatError.style.display = 'block';
+            return;
+        }
+
         textarea.value = '';
         textarea.style.height = 'auto';
         await poll();

@@ -1,5 +1,14 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../config/security.php';
+
+demarrer_session_securisee();
+
+if (session_expiree_par_inactivite()) {
+    detruire_session_courante();
+    header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
+    exit;
+}
+
 require_once __DIR__ . '/../../config/db.php';
 
 if (!isset($_SESSION['user_id']) || !isset($_POST['sortie_id'])) {

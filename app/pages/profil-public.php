@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../services/user-blocks.php';
+require_once __DIR__ . '/../services/interests.php';
 
 $profil_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $viewer_id = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
@@ -19,7 +20,7 @@ if (!$profil_id) {
 }
 
 $stmt = $pdo->prepare("
-    SELECT id, prenom, ville, bio, photo, date_naissance, created_at, account_status, email_verifie
+    SELECT id, prenom, nom, ville, bio, photo, date_naissance, created_at, account_status, email_verifie
     FROM users
     WHERE id = ?
 ");
@@ -38,6 +39,7 @@ $photos = [];
 $reponses = [];
 $sorties = [];
 $avis_recents = [];
+$interets_profil = [];
 $stats_profil = [
     'sorties_creees' => 0,
     'sorties_rejointes' => 0,
@@ -50,14 +52,19 @@ $confiance_score = 0;
 $bloque_par_moi = false;
 
 if ($profil) {
+    $nom_public = trim((string) ($profil['nom'] ?? ''));
+    $nom_affiche = $profil['prenom'] . ($nom_public !== '' ? ' ' . strtoupper(substr($nom_public, 0, 1)) . '.' : '');
+
     if ($viewer_id > 0 && $viewer_id !== (int) $profil['id']) {
         $bloque_par_moi = utilisateur_bloque_par_moi($pdo, $viewer_id, (int) $profil['id']);
     }
 
-    $stmt = $pdo->prepare("SELECT nom_fichier FROM photos_profil WHERE user_id = ? ORDER BY ordre ASC");
+    $stmt = $pdo->prepare("SELECT nom_fichier FROM photos_profil WHERE user_id = ? AND moderation_status = 'approved' ORDER BY ordre ASC");
     $stmt->execute([$profil_id]);
     $photos = $stmt->fetchAll();
-    $photo_affichee = $profil['photo'] ?: ($photos[0]['nom_fichier'] ?? null);
+    $photos_approuvees = array_column($photos, 'nom_fichier');
+    $photo_affichee = in_array($profil['photo'], $photos_approuvees, true) ? $profil['photo'] : ($photos[0]['nom_fichier'] ?? null);
+    $interets_profil = interets_utilisateur($pdo, $profil_id);
 
     $stmt = $pdo->prepare("
         SELECT p.question, rp.reponse
@@ -121,6 +128,7 @@ if ($profil) {
 
     $confiance_items = [
         'Email verifie' => !empty($profil['email_verifie']),
+        'Interets renseignes' => count($interets_profil) >= 3,
         'Questions completees' => count($reponses) >= 3,
         'Activite sur le site' => $stats_profil['sorties_creees'] > 0 || $stats_profil['sorties_rejointes'] > 0,
         'Avis apres sortie' => $stats_profil['avis_recus'] > 0,
@@ -146,7 +154,7 @@ if ($profil) {
           <div class="profil-avatar"><?= e(strtoupper(substr($profil['prenom'], 0, 1))) ?></div>
         <?php endif; ?>
 
-        <h1 class="profil-nom"><?= e($profil['prenom']) ?></h1>
+        <h1 class="profil-nom"><?= e($nom_affiche) ?></h1>
         <p class="profil-ville"><?= e($profil['ville']) ?></p>
 
         <?php if (!empty($profil['date_naissance'])): ?>
@@ -255,6 +263,17 @@ if ($profil) {
             <p class="sortie-meta">Aucune bio ajoutee pour le moment.</p>
           <?php endif; ?>
         </section>
+
+        <?php if (!empty($interets_profil)): ?>
+          <section class="profil-section">
+            <h2 class="profil-section-title">Centres d'interet</h2>
+            <div class="interest-cloud">
+              <?php foreach ($interets_profil as $interet): ?>
+                <span><?= e($interet) ?></span>
+              <?php endforeach; ?>
+            </div>
+          </section>
+        <?php endif; ?>
 
         <section class="profil-section">
           <h2 class="profil-section-title">Signaux de confiance</h2>

@@ -1,9 +1,18 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../config/security.php';
+
+demarrer_session_securisee();
+
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../services/conversation-access.php';
 
 header('Content-Type: application/json');
+
+if (session_expiree_par_inactivite()) {
+    detruire_session_courante();
+    echo json_encode(['error' => 'session_expiree']);
+    exit;
+}
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['error' => 'non_connecte']);

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../services/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('app/auth/connexion.php'));
@@ -41,28 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE sorties SET status = 'cancelled' WHERE id = ? AND user_id = ?");
             $stmt->execute([$sortie_id, $user_id]);
 
-            $stmt = $pdo->prepare("
-                SELECT user_id
-                FROM participations
-                WHERE sortie_id = ?
-            ");
-            $stmt->execute([$sortie_id]);
-            $participants = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-            if (!empty($participants)) {
-                $stmt_notif = $pdo->prepare("
-                    INSERT INTO notifications (user_id, type, message, lien)
-                    VALUES (?, 'sortie_annulee', ?, ?)
-                ");
-
-                foreach ($participants as $participant_id) {
-                    $stmt_notif->execute([
-                        (int) $participant_id,
-                        'La sortie "' . $sortie['titre'] . '" a ete annulee.',
-                        'app/pages/sortie.php?id=' . (int) $sortie_id,
-                    ]);
-                }
-            }
+            notifier_participants_sortie(
+                $pdo,
+                (int) $sortie_id,
+                'sortie_annulee',
+                'La sortie "' . $sortie['titre'] . '" a ete annulee.',
+                [$user_id]
+            );
 
             $pdo->commit();
             header('Location: ' . app_url('app/pages/mes-sorties.php'));

@@ -1,5 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/../config/security.php';
+
+demarrer_session_securisee();
+
+if (session_expiree_par_inactivite()) {
+    detruire_session_courante();
+    header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
+    exit;
+}
 
 $nb_notifs = 0;
 $nb_msgs = 0;
@@ -9,14 +17,38 @@ $is_admin_header = false;
 if (isset($_SESSION['user_id'])) {
     require_once __DIR__ . '/../config/db.php';
 
-    $stmt_user = $pdo->prepare("SELECT account_status, is_admin FROM users WHERE id = ?");
+    $stmt_user = $pdo->prepare("SELECT account_status, is_admin, age_verified, verification_status FROM users WHERE id = ?");
     $stmt_user->execute([$_SESSION['user_id']]);
     $current_user = $stmt_user->fetch();
     $current_user_status = $current_user['account_status'] ?? false;
 
     if ($current_user_status === false || ($current_user_status !== null && $current_user_status !== '' && $current_user_status !== 'active')) {
-        session_destroy();
+        detruire_session_courante();
         header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
+        exit;
+    }
+
+    $chemin_courant = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $identity_routes_autorisees = [
+        '/app/intime/verification.php',
+        '/app/auth/deconnexion.php',
+        '/app/auth/verifier-email.php',
+        '/app/legal/',
+    ];
+    $route_identite_autorisee = false;
+
+    foreach ($identity_routes_autorisees as $route_autorisee) {
+        if (str_contains($chemin_courant, $route_autorisee)) {
+            $route_identite_autorisee = true;
+            break;
+        }
+    }
+
+    if (
+        !$route_identite_autorisee
+        && (empty($current_user['age_verified']) || ($current_user['verification_status'] ?? '') !== 'verified')
+    ) {
+        header('Location: /Site_rencontre/RencontreIRL/app/intime/verification.php');
         exit;
     }
 
@@ -63,12 +95,12 @@ if (isset($_SESSION['user_id'])) {
     <?php if (isset($_SESSION['user_id'])): ?>
       <a href="/Site_rencontre/RencontreIRL/app/pages/profil.php">Mon profil</a>
       <a href="/Site_rencontre/RencontreIRL/app/pages/sorties.php">Sorties</a>
+      <a href="/Site_rencontre/RencontreIRL/app/intime/">Intime</a>
       <a href="/Site_rencontre/RencontreIRL/app/pages/mes-sorties.php">Mes sorties</a>
       <a href="/Site_rencontre/RencontreIRL/app/pages/messages.php">Messages<?= $nb_msgs > 0 ? ' <span class="nav-badge">' . (int) $nb_msgs . '</span>' : '' ?></a>
       <a href="/Site_rencontre/RencontreIRL/app/pages/notifications.php">Notifications<?= $nb_notifs > 0 ? ' <span class="nav-badge">' . (int) $nb_notifs . '</span>' : '' ?></a>
       <?php if ($is_admin_header): ?>
-        <a href="/Site_rencontre/RencontreIRL/app/admin/users.php">Utilisateurs</a>
-        <a href="/Site_rencontre/RencontreIRL/app/admin/reports.php">Signalements<?= $nb_reports > 0 ? ' <span class="nav-badge">' . (int) $nb_reports . '</span>' : '' ?></a>
+        <a href="/Site_rencontre/RencontreIRL/app/admin/">Admin<?= $nb_reports > 0 ? ' <span class="nav-badge">' . (int) $nb_reports . '</span>' : '' ?></a>
       <?php endif; ?>
       <a href="/Site_rencontre/RencontreIRL/app/pages/parametres.php">Paramètres</a>
       <a href="/Site_rencontre/RencontreIRL/app/auth/deconnexion.php">Déconnexion</a>

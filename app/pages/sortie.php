@@ -11,7 +11,21 @@ if (!$sortie_id) {
 }
 
 $stmt = $pdo->prepare("
-    SELECT s.*, u.prenom AS organisateur, u.id AS organisateur_id, u.account_status AS organisateur_status
+    SELECT
+        s.*,
+        u.prenom AS organisateur,
+        u.nom AS organisateur_nom,
+        u.ville AS organisateur_ville,
+        u.bio AS organisateur_bio,
+        u.photo AS organisateur_photo,
+        u.email_verifie AS organisateur_email_verifie,
+        u.id AS organisateur_id,
+        u.account_status AS organisateur_status,
+        (
+            SELECT COUNT(*)
+            FROM sorties so
+            WHERE so.user_id = u.id
+        ) AS organisateur_nb_sorties
     FROM sorties s
     JOIN users u ON u.id = s.user_id
     WHERE s.id = ?
@@ -35,6 +49,11 @@ $avis_sortie = [];
 $avis_deja_donnes = [];
 $distance = null;
 $statut_sortie = $sortie ? sortie_statut_effectif($sortie) : 'unknown';
+$nb_participants = 0;
+$places_total = $sortie ? max(1, (int) $sortie['places_total']) : 1;
+$places_restantes = $sortie ? max(0, (int) $sortie['places_restantes']) : 0;
+$places_prises = $sortie ? max(0, $places_total - $places_restantes) : 0;
+$progression_places = $sortie ? min(100, (int) round(($places_prises / $places_total) * 100)) : 0;
 
 if ($sortie && $user_id > 0) {
     $stmt = $pdo->prepare("SELECT latitude, longitude FROM users WHERE id = ?");
@@ -50,7 +69,13 @@ if ($sortie && $user_id > 0) {
     $deja_inscrit = (bool) $stmt->fetch();
 }
 
-if ($sortie && ($est_organisateur || $statut_sortie === 'finished')) {
+if ($sortie) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM participations WHERE sortie_id = ?");
+    $stmt->execute([$sortie_id]);
+    $nb_participants = (int) $stmt->fetchColumn();
+}
+
+if ($sortie && ($est_organisateur || $deja_inscrit || $statut_sortie === 'finished')) {
     $stmt = $pdo->prepare("
         SELECT u.id, u.prenom, p.created_at
         FROM participations p
@@ -102,10 +127,19 @@ if ($sortie && $statut_sortie === 'finished') {
 
     <div class="sortie-detail-layout">
       <article class="sortie-detail-main">
-        <p class="sortie-meta">
-          Propose par <a href="profil-public.php?id=<?= (int) $sortie['organisateur_id'] ?>" class="back-link"><?= e($sortie['organisateur']) ?></a> -
-          <?= date('d/m/Y a H:i', strtotime($sortie['date_sortie'])) ?>
-        </p>
+        <div class="event-hero-summary">
+          <div>
+            <p class="sortie-meta">Le <?= date('d/m/Y a H:i', strtotime($sortie['date_sortie'])) ?></p>
+            <p class="event-location"><?= e($sortie['ville']) ?><?= !empty($sortie['adresse']) ? ' - ' . e($sortie['adresse']) : '' ?></p>
+          </div>
+          <div class="event-quick-stats">
+            <span><strong><?= (int) $nb_participants ?></strong> participant<?= $nb_participants > 1 ? 's' : '' ?></span>
+            <span><strong><?= (int) $places_restantes ?></strong> place<?= $places_restantes > 1 ? 's' : '' ?> libre<?= $places_restantes > 1 ? 's' : '' ?></span>
+            <?php if ($distance !== null): ?>
+              <span><strong><?= (float) $distance ?></strong> km</span>
+            <?php endif; ?>
+          </div>
+        </div>
 
         <?php if (!empty($sortie['description'])): ?>
           <p class="sortie-desc" style="font-size: 15px; margin-top: 1.5rem;">
@@ -116,6 +150,16 @@ if ($sortie && $statut_sortie === 'finished') {
             Aucune description ajoutee pour le moment.
           </p>
         <?php endif; ?>
+
+        <div class="event-progress">
+          <div class="event-progress-head">
+            <span>Remplissage</span>
+            <strong><?= (int) $places_prises ?> / <?= (int) $places_total ?></strong>
+          </div>
+          <div class="event-progress-bar">
+            <span style="width: <?= (int) $progression_places ?>%;"></span>
+          </div>
+        </div>
 
         <div class="detail-list">
           <div class="detail-row">
@@ -221,6 +265,28 @@ if ($sortie && $statut_sortie === 'finished') {
         <?php else: ?>
           <p class="alert alert-error">Cette sortie est complete.</p>
         <?php endif; ?>
+
+        <div class="organizer-card">
+          <h2 class="profil-section-title">Organisateur</h2>
+          <a href="profil-public.php?id=<?= (int) $sortie['organisateur_id'] ?>" class="organizer-link">
+            <?php if (!empty($sortie['organisateur_photo'])): ?>
+              <img src="/Site_rencontre/RencontreIRL/public/uploads/<?= e($sortie['organisateur_photo']) ?>" alt="Photo de <?= e($sortie['organisateur']) ?>" />
+            <?php else: ?>
+              <span class="organizer-avatar"><?= e(strtoupper(substr((string) $sortie['organisateur'], 0, 1))) ?></span>
+            <?php endif; ?>
+            <span>
+              <strong><?= e(trim($sortie['organisateur'] . ' ' . ($sortie['organisateur_nom'] ?? ''))) ?></strong>
+              <small><?= e($sortie['organisateur_ville'] ?: 'Ville non renseignee') ?></small>
+            </span>
+          </a>
+          <div class="organizer-badges">
+            <span class="<?= !empty($sortie['organisateur_email_verifie']) ? 'is-success' : '' ?>">Email <?= !empty($sortie['organisateur_email_verifie']) ? 'verifie' : 'non verifie' ?></span>
+            <span><?= (int) $sortie['organisateur_nb_sorties'] ?> sortie<?= (int) $sortie['organisateur_nb_sorties'] > 1 ? 's' : '' ?></span>
+          </div>
+          <?php if (!empty($sortie['organisateur_bio'])): ?>
+            <p><?= e(texte_court($sortie['organisateur_bio'], 130)) ?></p>
+          <?php endif; ?>
+        </div>
       </aside>
     </div>
 

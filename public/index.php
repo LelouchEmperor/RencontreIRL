@@ -1,11 +1,38 @@
-<?php require_once __DIR__ . '/../includes/header.php';
+<?php
+require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../config/db.php';
 
 if (isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/pages/sorties.php');
     exit;
 }
-?>
 
+$stats = ['sorties' => 0, 'villes' => 0, 'membres' => 0];
+$stmt = $pdo->query("
+    SELECT
+        (SELECT COUNT(*) FROM sorties WHERE date_sortie > NOW() AND (status IS NULL OR status = '' OR status = 'open')) AS sorties,
+        (SELECT COUNT(DISTINCT ville) FROM sorties WHERE date_sortie > NOW() AND (status IS NULL OR status = '' OR status = 'open')) AS villes,
+        (SELECT COUNT(*) FROM users WHERE account_status IS NULL OR account_status = '' OR account_status = 'active') AS membres
+");
+$stats = $stmt->fetch() ?: $stats;
+
+$stmt = $pdo->query("
+    SELECT s.id, s.titre, s.activite, s.ville, s.date_sortie, COALESCE(l.nb_likes, 0) AS nb_likes
+    FROM sorties s
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN (
+        SELECT sortie_id, COUNT(*) AS nb_likes
+        FROM likes_sorties
+        GROUP BY sortie_id
+    ) l ON l.sortie_id = s.id
+    WHERE s.date_sortie > NOW()
+    AND (s.status IS NULL OR s.status = '' OR s.status = 'open')
+    AND (u.account_status IS NULL OR u.account_status = '' OR u.account_status = 'active')
+    ORDER BY l.nb_likes DESC, s.date_sortie ASC
+    LIMIT 3
+");
+$sorties_apercu = $stmt->fetchAll();
+?>
 <section class="index-hero">
   <div class="hero-left">
     <div class="index-tag">Pour ceux qui arrivent quelque part</div>
@@ -18,6 +45,11 @@ if (isset($_SESSION['user_id'])) {
     <div class="index-btns">
       <a href="../app/pages/sorties.php" class="cta-btn">Voir les sorties</a>
       <a href="../app/auth/inscription.php" class="cta-btn-outline">Créer un compte</a>
+    </div>
+    <div class="hero-stats">
+      <span><strong><?= (int) $stats['sorties'] ?></strong> sorties a venir</span>
+      <span><strong><?= (int) $stats['villes'] ?></strong> villes actives</span>
+      <span><strong><?= (int) $stats['membres'] ?></strong> membres</span>
     </div>
   </div>
 
@@ -83,6 +115,26 @@ if (isset($_SESSION['user_id'])) {
 
 <div class="divider-light"></div>
 
+<?php if (!empty($sorties_apercu)): ?>
+  <section class="index-live">
+    <div class="index-live-head">
+      <span class="index-tag">En ce moment</span>
+      <h2>Des sorties qui n'attendent que quelques personnes</h2>
+    </div>
+    <div class="index-live-grid">
+      <?php foreach ($sorties_apercu as $sortie): ?>
+        <a href="../app/pages/sortie.php?id=<?= (int) $sortie['id'] ?>" class="index-live-card">
+          <span><?= e($sortie['activite']) ?></span>
+          <strong><?= e($sortie['titre']) ?></strong>
+          <small><?= e($sortie['ville']) ?> - <?= date('d/m a H:i', strtotime($sortie['date_sortie'])) ?></small>
+          <em><?= (int) $sortie['nb_likes'] ?> like<?= (int) $sortie['nb_likes'] > 1 ? 's' : '' ?></em>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <div class="divider-light"></div>
+<?php endif; ?>
 <section class="index-story">
   <div class="index-story-inner">
     <div class="story-step">

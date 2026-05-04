@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/geocode.php';
 require_once __DIR__ . '/../../config/upload.php';
+require_once __DIR__ . '/../services/interests.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
@@ -12,6 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = (int) $_SESSION['user_id'];
 $erreur  = '';
 $succes  = '';
+$interets_disponibles = interets_disponibles();
 
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
@@ -22,25 +24,40 @@ if (!$user) {
     exit;
 }
 
+$interets_user = interets_utilisateur($pdo, $user_id);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
 
-    $prenom         = trim($_POST['prenom'] ?? '');
     $ville          = trim($_POST['ville'] ?? '');
     $bio            = trim($_POST['bio'] ?? '');
-    $date_naissance = $_POST['date_naissance'] ?? $user['date_naissance'];
+    $interets        = normaliser_interets($_POST['interets'] ?? []);
     $photo          = $user['photo'];
 
-    if ($prenom === '' || $ville === '') {
-        $erreur = 'Le prénom et la ville sont obligatoires.';
+    if ($ville === '') {
+        $erreur = 'La ville est obligatoire.';
     } else {
         if (!empty($_FILES['photo']['name'])) {
-            $result = valider_et_upload_photo($_FILES['photo'], $user_id, $user['photo']);
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM photos_profil WHERE user_id = ? AND moderation_status = 'pending'");
+            $stmt->execute([$user_id]);
+            $photo_en_attente = (int) $stmt->fetchColumn();
 
-            if (!$result['ok']) {
-                $erreur = $result['erreur'];
+            if ($photo_en_attente > 0) {
+                $erreur = 'Tu as deja une photo en attente de validation. Attends la reponse admin avant d\'en proposer une autre.';
             } else {
-                $photo = $result['nom'];
+                $result = valider_et_upload_photo($_FILES['photo'], $user_id);
+
+                if (!$result['ok']) {
+                    $erreur = $result['erreur'];
+                } else {
+                    $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), -1) + 1 FROM photos_profil WHERE user_id = ?");
+                    $stmt->execute([$user_id]);
+                    $ordre_photo = (int) $stmt->fetchColumn();
+
+                    $stmt = $pdo->prepare("INSERT INTO photos_profil (user_id, nom_fichier, ordre, moderation_status) VALUES (?, ?, ?, 'pending')");
+                    $stmt->execute([$user_id, $result['nom'], $ordre_photo]);
+                    $succes = 'Photo envoyee. Elle sera visible apres validation admin.';
+                }
             }
         }
 
@@ -51,18 +68,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("
                 UPDATE users
-                SET prenom = ?, ville = ?, bio = ?, date_naissance = ?, latitude = ?, longitude = ?, photo = ?
+                SET ville = ?, bio = ?, latitude = ?, longitude = ?, photo = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$prenom, $ville, $bio, $date_naissance, $lat, $lon, $photo, $user_id]);
+            $stmt->execute([$ville, $bio, $lat, $lon, $photo, $user_id]);
+            enregistrer_interets_utilisateur($pdo, $user_id, $interets);
 
-            $_SESSION['prenom'] = $prenom;
+            $interets_user = interets_utilisateur($pdo, $user_id);
 
             $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
             $stmt->execute([$user_id]);
             $user = $stmt->fetch();
 
-            $succes = 'Profil mis à jour avec succès.';
+            $succes = $succes ?: 'Profil mis a jour avec succes.';
         }
     }
 }
@@ -95,10 +113,19 @@ $stmt = $pdo->prepare("SELECT COUNT(*) FROM photos_profil WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $nb_photos = (int) $stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT nom_fichier FROM photos_profil WHERE user_id = ? ORDER BY ordre ASC LIMIT 1");
+$stmt = $pdo->prepare("SELECT nom_fichier FROM photos_profil WHERE user_id = ? AND moderation_status = 'approved' ORDER BY ordre ASC LIMIT 1");
 $stmt->execute([$user_id]);
 $premiere_photo = $stmt->fetchColumn();
 $photo_affichee = $user['photo'] ?: ($premiere_photo ?: null);
+
+if ($photo_affichee) {
+    $stmt = $pdo->prepare("SELECT id FROM photos_profil WHERE user_id = ? AND nom_fichier = ? AND moderation_status = 'approved'");
+    $stmt->execute([$user_id, $photo_affichee]);
+
+    if (!$stmt->fetch()) {
+        $photo_affichee = $premiere_photo ?: null;
+    }
+}
 
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM reponses_prompts WHERE user_id = ?");
 $stmt->execute([$user_id]);
@@ -106,6 +133,7 @@ $nb_reponses_prompts = (int) $stmt->fetchColumn();
 
 $confiance_items = [
     'Email verifie' => !empty($user['email_verifie']),
+    'Interets renseignes' => count($interets_user) >= 3,
     'Questions completees' => $nb_reponses_prompts >= 3,
     'Activite sur le site' => !empty($mes_sorties) || !empty($sorties_rejointes),
 ];
@@ -138,14 +166,14 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
         </div>
       </div>
 
-      <h2 class="profil-nom"><?= htmlspecialchars($user['prenom']) ?></h2>
+      <h2 class="profil-nom"><?= htmlspecialchars(trim($user['prenom'] . ' ' . ($user['nom'] ?? ''))) ?></h2>
 
       <p class="profil-ville">
         <?= htmlspecialchars($user['ville']) ?>
         <?php if (!empty($user['latitude'])): ?>
-          <span style="color: #8b1a2a; font-size: 11px;">✓ géolocalisé</span>
+          <span style="color: #8b1a2a; font-size: 11px;">geolocalise</span>
         <?php else: ?>
-          <span style="color: #c4a0a8; font-size: 11px;">non géolocalisé</span>
+          <span style="color: #c4a0a8; font-size: 11px;">non geolocalise</span>
         <?php endif; ?>
       </p>
 
@@ -162,7 +190,7 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
       <div class="profil-stats">
         <div class="stat">
           <span class="stat-nombre"><?= count($mes_sorties) ?></span>
-          <span class="stat-label">Sorties créées</span>
+          <span class="stat-label">Sorties creees</span>
         </div>
         <div class="stat">
           <span class="stat-nombre"><?= count($sorties_rejointes) ?></span>
@@ -187,11 +215,32 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
         </div>
       </div>
       <a href="../actions/upload-photo.php" class="cta-btn-small" style="margin-top: 1rem;">
-        Gérer mes photos
+        Gerer mes photos
       </a>
       <a href="../services/prompts.php" class="cta-btn-small" style="margin-top: 0.5rem;">
         Completer mes questions
       </a>
+
+      <?php
+        $next_steps = [];
+        if (count($interets_user) < 3) {
+            $next_steps[] = ['label' => 'Choisis au moins 3 centres d\'interet', 'url' => '#interets'];
+        }
+        if ($nb_reponses_prompts < 3) {
+            $next_steps[] = ['label' => 'Reponds a 3 questions de profil', 'url' => '../services/prompts.php'];
+        }
+        if (empty($mes_sorties) && empty($sorties_rejointes)) {
+            $next_steps[] = ['label' => 'Rejoins ou propose une premiere sortie', 'url' => 'sorties.php'];
+        }
+      ?>
+      <?php if (!empty($next_steps)): ?>
+        <div class="onboarding-card">
+          <strong>Prochaine etape</strong>
+          <?php foreach (array_slice($next_steps, 0, 2) as $step): ?>
+            <a href="<?= e($step['url']) ?>"><?= e($step['label']) ?></a>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
     </div>
 
     <div class="profil-content">
@@ -214,15 +263,18 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
             <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png,.webp" />
           </div>
 
-          <div class="form-group">
-            <label for="prenom">Prénom</label>
-            <input
-              type="text"
-              id="prenom"
-              name="prenom"
-              value="<?= htmlspecialchars($user['prenom']) ?>"
-              required
-            />
+
+          <div class="identity-readonly-card">
+            <span>Identite legale</span>
+            <strong>
+              <?= !empty($user['nom']) ? e(trim($user['prenom'] . ' ' . $user['nom'])) : 'Non verifiee' ?>
+            </strong>
+            <?php if (!empty($user['date_naissance'])): ?>
+              <small>Date de naissance verifiee : <?= e(date('d/m/Y', strtotime($user['date_naissance']))) ?></small>
+            <?php endif; ?>
+            <small>
+              Le prenom, le nom et la date de naissance proviennent de la verification d'identite. Ils ne peuvent pas etre modifies depuis le profil.
+            </small>
           </div>
 
           <div class="form-group">
@@ -237,16 +289,6 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
           </div>
 
           <div class="form-group">
-            <label for="date_naissance">Date de naissance</label>
-            <input
-              type="date"
-              id="date_naissance"
-              name="date_naissance"
-              value="<?= htmlspecialchars($user['date_naissance'] ?? '') ?>"
-            />
-          </div>
-
-          <div class="form-group">
             <label for="bio">Bio</label>
             <textarea
               id="bio"
@@ -254,6 +296,23 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
               rows="4"
               placeholder="Parle de toi en quelques mots..."
             ><?= htmlspecialchars($user['bio'] ?? '') ?></textarea>
+          </div>
+
+          <div class="form-group" id="interets">
+            <label>Centres d'interet</label>
+            <div class="interest-picker">
+              <?php foreach ($interets_disponibles as $interet): ?>
+                <label class="interest-chip">
+                  <input
+                    type="checkbox"
+                    name="interets[]"
+                    value="<?= e($interet) ?>"
+                    <?= in_array($interet, $interets_user, true) ? 'checked' : '' ?>
+                  />
+                  <span><?= e($interet) ?></span>
+                </label>
+              <?php endforeach; ?>
+            </div>
           </div>
 
           <button type="submit" class="submit-btn">Sauvegarder</button>
@@ -266,7 +325,7 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
 
       <?php if (!empty($mes_sorties)): ?>
         <div class="profil-section">
-          <h3 class="profil-section-title">Mes sorties créées</h3>
+          <h3 class="profil-section-title">Mes sorties creees</h3>
           <div class="profil-sorties">
             <?php foreach ($mes_sorties as $sortie): ?>
               <?php $statut_sortie = sortie_statut_effectif($sortie); ?>
@@ -279,8 +338,8 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
                 <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
 
                 <div class="sortie-meta">
-                  <?= htmlspecialchars($sortie['ville']) ?> —
-                  <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
+                  <?= htmlspecialchars($sortie['ville']) ?> -
+                  <?= date('d/m/Y a H:i', strtotime($sortie['date_sortie'])) ?>
                 </div>
 
                 <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem;">
@@ -310,8 +369,8 @@ $confiance_score = (int) round((count(array_filter($confiance_items)) / count($c
                 <div class="sortie-titre" style="font-size: 15px;"><?= htmlspecialchars($sortie['titre']) ?></div>
 
                 <div class="sortie-meta">
-                  <?= htmlspecialchars($sortie['ville']) ?> —
-                  <?= date('d/m/Y à H:i', strtotime($sortie['date_sortie'])) ?>
+                  <?= htmlspecialchars($sortie['ville']) ?> -
+                  <?= date('d/m/Y a H:i', strtotime($sortie['date_sortie'])) ?>
                 </div>
 
                 <div style="margin-top: 0.75rem;">
@@ -343,7 +402,7 @@ if (photoInput) {
       const img = document.createElement('img');
       img.id = 'sidebarPreview';
       img.src = ev.target.result;
-      img.alt = 'Aperçu photo';
+      img.alt = 'Apercu photo';
       img.style.cssText = 'width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #8b1a2a;';
 
       preview.replaceWith(img);

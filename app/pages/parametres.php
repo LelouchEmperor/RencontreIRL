@@ -69,6 +69,21 @@ $liens_parametres = [
         'titre' => 'Profils bloques',
         'description' => 'Voir et debloquer les profils que tu as bloques',
     ],
+    [
+        'href' => 'app/account/privacy.php',
+        'titre' => 'Confidentialite',
+        'description' => 'Regler la visibilite et les preferences intimes',
+    ],
+    [
+        'href' => 'app/account/data-export.php',
+        'titre' => 'Exporter mes donnees',
+        'description' => 'Telecharger une copie JSON de tes donnees',
+    ],
+    [
+        'href' => 'app/account/delete.php',
+        'titre' => 'Supprimer mon compte',
+        'description' => 'Demande de suppression definitive',
+    ],
 ];
 ?>
 

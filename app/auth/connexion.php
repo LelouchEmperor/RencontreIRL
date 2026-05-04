@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../services/security-log.php';
 
 $erreur = '';
 
@@ -12,24 +13,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($email === '' || $mdp === '') {
         $erreur = 'Tous les champs sont obligatoires.';
+    } elseif (connexion_temporairement_bloquee($pdo, $email)) {
+        journaliser_evenement_securite($pdo, 'login_rate_limited', null, $email);
+        $erreur = 'Trop de tentatives. Reessaie dans quelques minutes.';
     } else {
         $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if ($user && password_verify($mdp, $user['mot_de_passe'])) {
+            if (password_needs_rehash($user['mot_de_passe'], PASSWORD_DEFAULT)) {
+                $nouveau_hash = password_hash($mdp, PASSWORD_DEFAULT);
+                $stmt_rehash = $pdo->prepare("UPDATE users SET mot_de_passe = ? WHERE id = ?");
+                $stmt_rehash->execute([$nouveau_hash, (int) $user['id']]);
+            }
+
             if (!$user['email_verifie']) {
+                enregistrer_tentative_connexion($pdo, $email, false);
+                journaliser_evenement_securite($pdo, 'login_email_not_verified', (int) $user['id'], $email);
                 $erreur = 'Ton email n\'est pas encore verifie. Consulte ta boite mail.';
             } elseif (($user['account_status'] ?? 'active') !== 'active') {
+                enregistrer_tentative_connexion($pdo, $email, false);
+                journaliser_evenement_securite($pdo, 'login_restricted_account', (int) $user['id'], $email, (string) ($user['account_status'] ?? 'unknown'));
                 $erreur = 'Ton compte est actuellement restreint. Contacte le support si besoin.';
             } else {
+                enregistrer_tentative_connexion($pdo, $email, true);
+                journaliser_evenement_securite($pdo, 'login_success', (int) $user['id'], $email);
+                nettoyer_anciennes_tentatives_connexion($pdo);
                 session_regenerate_id(true);
                 $_SESSION['user_id'] = (int) $user['id'];
                 $_SESSION['prenom']  = $user['prenom'];
+                $_SESSION['derniere_activite'] = time();
                 header('Location: /Site_rencontre/RencontreIRL/app/pages/sorties.php');
                 exit;
             }
         } else {
+            enregistrer_tentative_connexion($pdo, $email, false);
+            journaliser_evenement_securite($pdo, 'login_failed', $user ? (int) $user['id'] : null, $email);
             $erreur = 'Email ou mot de passe incorrect.';
         }
     }

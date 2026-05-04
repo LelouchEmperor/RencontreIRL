@@ -1,7 +1,17 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../config/security.php';
+
+demarrer_session_securisee();
+
+if (session_expiree_par_inactivite()) {
+    detruire_session_courante();
+    header('Location: ' . app_url('app/auth/connexion.php'));
+    exit;
+}
+
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../services/user-cleanup.php';
+require_once __DIR__ . '/../services/security-log.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('app/auth/connexion.php'));
@@ -43,6 +53,7 @@ if ($action === 'set_status') {
     if (in_array($account_status, $allowed_statuses, true)) {
         $stmt = $pdo->prepare("UPDATE users SET account_status = ? WHERE id = ?");
         $stmt->execute([$account_status, $target_user_id]);
+        journaliser_evenement_securite($pdo, 'admin_user_status_changed', $admin_id, null, 'target=' . $target_user_id . ';status=' . $account_status);
     }
 
     header('Location: ' . lien_interne($redirect, 'app/pages/sorties.php'));
@@ -51,6 +62,7 @@ if ($action === 'set_status') {
 
 if ($action === 'delete_user') {
     try {
+        journaliser_evenement_securite($pdo, 'admin_user_deleted', $admin_id, null, 'target=' . $target_user_id);
         $photos = supprimer_utilisateur_complet($pdo, $target_user_id);
         supprimer_fichiers_upload($photos);
     } catch (Throwable $e) {

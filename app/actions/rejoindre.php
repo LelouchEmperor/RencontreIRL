@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../services/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
@@ -90,15 +91,13 @@ if ((int) $sortie['user_id'] === $user_id) {
             $pdo->commit();
             $sortie['places_restantes'] = max(0, (int) $sortie['places_restantes'] - 1);
 
-            $stmt = $pdo->prepare("
-                INSERT INTO notifications (user_id, type, message, lien)
-                VALUES (?, 'participation', ?, ?)
-            ");
-            $stmt->execute([
-                $sortie['user_id'],
-                $_SESSION['prenom'] . ' a rejoint ta sortie : ' . $sortie['titre'],
+            creer_notification(
+                $pdo,
+                (int) $sortie['user_id'],
+                'participation',
+                ($_SESSION['prenom'] ?? 'Un participant') . ' a rejoint ta sortie : ' . $sortie['titre'],
                 'app/pages/sortie.php?id=' . (int) $sortie_id
-            ]);
+            );
             $succes = true;
         }
     } catch (Exception $e) {

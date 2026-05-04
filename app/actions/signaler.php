@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../services/security-log.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
@@ -12,7 +13,18 @@ $target_type = $_GET['type'] ?? '';
 $target_id   = isset($_GET['target']) ? (int) $_GET['target'] : 0;
 
 $allowed_types = ['user', 'sortie', 'message'];
-$allowed_reasons = ['faux_profil', 'contenu_inapproprie', 'harcelement', 'spam', 'autre'];
+$allowed_reasons = [
+    'mineur_suspecte',
+    'faux_profil',
+    'comportement_insistant',
+    'harcelement',
+    'contenu_non_consenti',
+    'chantage',
+    'propos_haineux',
+    'spam',
+    'contenu_inapproprie',
+    'autre',
+];
 
 if (!in_array($target_type, $allowed_types, true) || $target_id <= 0) {
     http_response_code(400);
@@ -85,12 +97,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $reason  = $_POST['reason'] ?? '';
     $details = trim($_POST['details'] ?? '');
-
     if (!in_array($reason, $allowed_reasons, true)) {
         $erreur = 'Motif invalide.';
     } elseif ($reason === 'autre' && $details === '') {
-        $erreur = 'Merci de préciser ton signalement.';
-    } else {
+        $erreur = 'Merci de preciser ton signalement.';
+    } elseif (strlen($details) > 1500) {
+        $erreur = 'Le detail du signalement est trop long.';
+    }
+
+    if (!$erreur) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM reports
+            WHERE reporter_id = ?
+            AND created_at >= (NOW() - INTERVAL 10 MINUTE)
+        ");
+        $stmt->execute([$reporter_id]);
+
+        if ((int) $stmt->fetchColumn() >= 5) {
+            journaliser_evenement_securite($pdo, 'report_rate_limited', $reporter_id, null, $target_type . ':' . $target_id);
+            $erreur = 'Trop de signalements en peu de temps. Reessaie dans quelques minutes.';
+        }
+    }
+
+    if (!$erreur) {
         $stmt = $pdo->prepare("
             SELECT id
             FROM reports
@@ -101,15 +131,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existing = $stmt->fetch();
 
         if ($existing) {
-            $erreur = 'Tu as déjà signalé cet élément.';
+            $erreur = 'Tu as deja signale cet element.';
         } else {
             $stmt = $pdo->prepare("
                 INSERT INTO reports (reporter_id, target_type, target_id, reason, details)
                 VALUES (?, ?, ?, ?, ?)
             ");
             $stmt->execute([$reporter_id, $target_type, $target_id, $reason, $details ?: null]);
+            journaliser_evenement_securite($pdo, 'report_created', $reporter_id, null, $target_type . ':' . $target_id);
 
-            $succes = 'Merci, ton signalement a bien été envoyé.';
+            $succes = 'Merci, ton signalement a bien ete envoye.';
         }
     }
 }
@@ -145,10 +176,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label for="reason">Pourquoi tu signales ?</label>
     <select name="reason" id="reason" required>
       <option value="">Choisir un motif</option>
+      <option value="mineur_suspecte">Mineur suspecte</option>
       <option value="faux_profil">Faux profil</option>
-      <option value="contenu_inapproprie">Contenu inapproprié</option>
+      <option value="comportement_insistant">Comportement insistant</option>
       <option value="harcelement">Harcèlement</option>
+      <option value="contenu_non_consenti">Contenu non consenti</option>
+      <option value="chantage">Chantage</option>
+      <option value="propos_haineux">Propos haineux</option>
       <option value="spam">Spam</option>
+      <option value="contenu_inapproprie">Contenu inapproprié</option>
       <option value="autre">Autre</option>
     </select>
   </div>

@@ -10,4 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
       submit.textContent = submit.dataset.loadingText || 'Traitement...';
     });
   });
+
+  const navToggle = document.querySelector('.nav-toggle');
+
+  if (navToggle) {
+    document.querySelectorAll('.nav-links a').forEach((link) => {
+      link.addEventListener('click', () => {
+        navToggle.checked = false;
+      });
+    });
+  }
 });

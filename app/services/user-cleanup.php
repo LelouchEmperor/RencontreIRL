@@ -95,6 +95,49 @@ function supprimer_utilisateur_complet(PDO $pdo, int $user_id): array
         $stmt = $pdo->prepare("DELETE FROM reponses_prompts WHERE user_id = ?");
         $stmt->execute([$user_id]);
 
+        $stmt = $pdo->prepare("DELETE FROM intime_matches WHERE creator_id = ? OR interested_user_id = ?");
+        $stmt->execute([$user_id, $user_id]);
+
+        $stmt = $pdo->prepare("
+            DELETE FROM intime_messages
+            WHERE conversation_id IN (
+                SELECT id FROM intime_conversations WHERE user_one_id = ? OR user_two_id = ?
+            )
+            OR expediteur_id = ?
+        ");
+        $stmt->execute([$user_id, $user_id, $user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM intime_conversations WHERE user_one_id = ? OR user_two_id = ?");
+        $stmt->execute([$user_id, $user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM intime_profile_interests WHERE requester_id = ? OR target_user_id = ?");
+        $stmt->execute([$user_id, $user_id]);
+
+        $stmt = $pdo->prepare("
+            DELETE FROM intime_interests
+            WHERE user_id = ?
+            OR proposal_id IN (SELECT id FROM proposals_intime WHERE creator_id = ?)
+        ");
+        $stmt->execute([$user_id, $user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM proposals_intime WHERE creator_id = ?");
+        $stmt->execute([$user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM user_profiles_intime WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM privacy_settings WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM consent_events WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM age_verifications WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+
+        $stmt = $pdo->prepare("DELETE FROM audit_logs WHERE actor_user_id = ?");
+        $stmt->execute([$user_id]);
+
         $stmt = $pdo->prepare("DELETE FROM photos_profil WHERE user_id = ?");
         $stmt->execute([$user_id]);
 

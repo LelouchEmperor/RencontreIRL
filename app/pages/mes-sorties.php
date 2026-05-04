@@ -24,6 +24,28 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id]);
 $mes_sorties = $stmt->fetchAll();
 
+$stmt = $pdo->prepare("
+    SELECT
+        s.*,
+        u.prenom AS organisateur,
+        u.account_status AS organisateur_status,
+        p.created_at AS participation_at,
+        COUNT(DISTINCT all_p.id) AS nb_participants,
+        COUNT(DISTINCT l.id) AS nb_likes
+    FROM participations p
+    JOIN sorties s ON s.id = p.sortie_id
+    JOIN users u ON u.id = s.user_id
+    LEFT JOIN participations all_p ON all_p.sortie_id = s.id
+    LEFT JOIN likes_sorties l ON l.sortie_id = s.id
+    WHERE p.user_id = ?
+    AND s.user_id <> ?
+    AND (u.account_status IS NULL OR u.account_status = '' OR u.account_status = 'active')
+    GROUP BY s.id, p.created_at
+    ORDER BY s.date_sortie ASC
+");
+$stmt->execute([$user_id, $user_id]);
+$sorties_rejointes = $stmt->fetchAll();
+
 $participants_par_sortie = [];
 
 if (!empty($mes_sorties)) {
@@ -43,6 +65,14 @@ if (!empty($mes_sorties)) {
         $participants_par_sortie[(int) $participant['sortie_id']][] = $participant;
     }
 }
+
+$total_participants = 0;
+$total_likes = 0;
+
+foreach ($mes_sorties as $sortie) {
+    $total_participants += (int) $sortie['nb_participants'];
+    $total_likes += (int) $sortie['nb_likes'];
+}
 ?>
 
 <section class="section">
@@ -53,6 +83,27 @@ if (!empty($mes_sorties)) {
     </div>
     <a href="../actions/creer-sortie.php" class="cta-btn">+ Proposer une sortie</a>
   </div>
+
+  <div class="owner-dashboard">
+    <div>
+      <strong><?= count($mes_sorties) ?></strong>
+      <span>sortie<?= count($mes_sorties) > 1 ? 's' : '' ?> organisee<?= count($mes_sorties) > 1 ? 's' : '' ?></span>
+    </div>
+    <div>
+      <strong><?= count($sorties_rejointes) ?></strong>
+      <span>sortie<?= count($sorties_rejointes) > 1 ? 's' : '' ?> rejointe<?= count($sorties_rejointes) > 1 ? 's' : '' ?></span>
+    </div>
+    <div>
+      <strong><?= (int) $total_participants ?></strong>
+      <span>participant<?= $total_participants > 1 ? 's' : '' ?></span>
+    </div>
+    <div>
+      <strong><?= (int) $total_likes ?></strong>
+      <span>like<?= $total_likes > 1 ? 's' : '' ?></span>
+    </div>
+  </div>
+
+  <h2 class="owner-section-title">Sorties que j'organise</h2>
 
   <?php if (empty($mes_sorties)): ?>
     <div class="empty-state">
@@ -135,6 +186,46 @@ if (!empty($mes_sorties)) {
               </div>
             <?php endif; ?>
           </aside>
+        </article>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
+  <h2 class="owner-section-title">Sorties que j'ai rejointes</h2>
+
+  <?php if (empty($sorties_rejointes)): ?>
+    <div class="empty-state">
+      <p>Tu n'as pas encore rejoint de sortie.</p>
+      <a href="sorties.php" class="cta-btn" style="margin-top: 1rem;">Voir les sorties disponibles</a>
+    </div>
+  <?php else: ?>
+    <div class="joined-events">
+      <?php foreach ($sorties_rejointes as $sortie): ?>
+        <?php $statut_sortie = sortie_statut_effectif($sortie); ?>
+        <article class="joined-event-card">
+          <div>
+            <div class="sortie-header">
+              <span class="sortie-activite"><?= e($sortie['activite']) ?></span>
+              <span class="sortie-status sortie-status-<?= e($statut_sortie) ?>"><?= e(sortie_statut_label($statut_sortie)) ?></span>
+            </div>
+            <h3 class="sortie-titre">
+              <a href="sortie.php?id=<?= (int) $sortie['id'] ?>" style="color: inherit; text-decoration: none;"><?= e($sortie['titre']) ?></a>
+            </h3>
+            <p class="sortie-meta">
+              Organisee par
+              <a href="profil-public.php?id=<?= (int) $sortie['user_id'] ?>" class="sortie-author-link sortie-author-link-inline">
+                <span><?= e($sortie['organisateur']) ?></span>
+              </a>
+            </p>
+            <p class="sortie-meta"><?= e($sortie['ville']) ?> - <?= date('d/m/Y a H:i', strtotime($sortie['date_sortie'])) ?></p>
+          </div>
+          <div class="joined-event-actions">
+            <a href="sortie.php?id=<?= (int) $sortie['id'] ?>" class="cta-btn-small">Details</a>
+            <a href="conversation.php?sortie=<?= (int) $sortie['id'] ?>&user=<?= (int) $sortie['user_id'] ?>" class="cta-btn-small">Message</a>
+            <?php if ($statut_sortie === 'open'): ?>
+              <a href="../actions/quitter-sortie.php?id=<?= (int) $sortie['id'] ?>" class="cta-btn-small">Quitter</a>
+            <?php endif; ?>
+          </div>
         </article>
       <?php endforeach; ?>
     </div>

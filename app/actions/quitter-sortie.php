@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../services/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
@@ -43,6 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->rowCount() === 1) {
             $stmt = $pdo->prepare("UPDATE sorties SET places_restantes = LEAST(places_total, places_restantes + 1) WHERE id = ?");
             $stmt->execute([$sortie_id]);
+
+            creer_notification(
+                $pdo,
+                (int) $sortie['user_id'],
+                'participation_quittee',
+                ($_SESSION['prenom'] ?? 'Un participant') . ' a quitte ta sortie : ' . $sortie['titre'],
+                'app/pages/sortie.php?id=' . (int) $sortie_id
+            );
         }
 
         $pdo->commit();

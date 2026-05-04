@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../config/geocode.php';
+require_once __DIR__ . '/../services/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: /Site_rencontre/RencontreIRL/app/auth/connexion.php');
@@ -63,7 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $date_sortie, $places, $nouvelles_restantes,
                 $lat, $lon, $sortie_id, $_SESSION['user_id']
             ]);
-            header('Location: /Site_rencontre/RencontreIRL/app/pages/profil.php');
+
+            notifier_participants_sortie(
+                $pdo,
+                (int) $sortie_id,
+                'sortie_modifiee',
+                'La sortie "' . $titre . '" a ete mise a jour.',
+                [(int) $_SESSION['user_id']]
+            );
+
+            header('Location: /Site_rencontre/RencontreIRL/app/pages/sortie.php?id=' . (int) $sortie_id);
             exit;
         }
     }
